@@ -13,8 +13,6 @@
   "scripts": {
     "build": "wasm-pack build --target web",
     "test": "wasm-pack test --node",
-    "lint": "yarn lint_js & yarn lint_sol",
-    "lint_js": "./node_modules/.bin/eslint src --ext .js"
   },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "1.5.0",
