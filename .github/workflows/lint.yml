@@ -1,0 +1,34 @@
+name: Lint sol&js
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:  
+  lint_contract:
+      name: Lint contracts
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - uses: actions/setup-node@v2
+          with:
+            node-version: 16.x
+        - run: yarn install --frozen-lockfile
+        - name: Lint Check
+          run: yarn lint_sol
+  lint_javascript:
+      name: Lint javascript
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - uses: actions/setup-node@v2
+          with:
+            node-version: 16.x
+        - run: yarn install --frozen-lockfile
+        - name: Lint Check
+          run: yarn lint_js
