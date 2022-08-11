@@ -21,9 +21,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: taiki-e/github-actions/install-rust@main
+      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
         with:
@@ -36,5 +38,7 @@ jobs:
           key: ${{runner.OS}}-npm-caches-${{ hashFiles('package-lock.json') }}
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Start test
         run: yarn test
