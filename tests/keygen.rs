@@ -20,12 +20,14 @@ fn test_keygen_t1_n2() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[ignore]
 #[test]
 fn test_keygen_t2_n3() {
     common::keygen_t_n_parties(2, 3);
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[ignore]
 #[test]
 fn test_keygen_t2_n4() {
     common::keygen_t_n_parties(2, 4);
