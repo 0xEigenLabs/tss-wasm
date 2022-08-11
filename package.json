@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "wasm-pack build --target web",
-    "test": "wasm-pack test --node",
+    "test": "wasm-pack test --node"
   },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "1.5.0",
