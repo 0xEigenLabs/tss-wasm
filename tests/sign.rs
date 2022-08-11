@@ -25,19 +25,19 @@ fn test_sign_n3_t2_ttag3() {
     common::sign(2, 3, 3, vec![0, 1, 2]);
 }
 
+/* TODO: comment to speed up CI
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 #[test]
-#[ignore]
 fn test_sign_n5_t2_ttag4() {
     common::sign(2, 5, 4, vec![0, 2, 3, 4])
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 #[test]
-#[ignore]
 fn test_sign_n8_t4_ttag6() {
     common::sign(4, 8, 6, vec![0, 1, 2, 4, 6, 7])
 }
+*/
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bench {
