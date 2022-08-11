@@ -1,14 +1,15 @@
 [package]
-name = "emerald-city"
-version = "0.2.0"
+name = "tss-wasm"
+version = "0.0.1"
 edition = "2021"
 
 authors = [
-    "Omer <omer@kzencorp.com>"
+    "Omer <omer@kzencorp.com>",
+    "Eigen Labs"
 ]
 description = "WASM/HW-friendly lightweight client application for threshold ECDSA"
-homepage = "https://github.com/KZen-networks"
-repository = "https://github.com/KZen-networks/emerald-city"
+homepage = "https://github.com/ieigen"
+repository = "https://github.com/ieigen/tss-wasm"
 license = "GPL-3.0-or-later"
 
 
@@ -35,16 +36,14 @@ num-traits = "0.2.6"
 
 bit-vec = "0.5"
 cryptoxide = "0.1.1"
-zeroize = "0.5.2"
+zeroize = "1.0"
 
-libsecp256k1 = "0.2.2"
+libsecp256k1 = "0.3.2"
 reqwest = { version = "0.11.11", features = ["json"] }
-#reqwest = { path = "../reqwest", version = "0.11.11", features = ["json"] }
 aes-gcm = "0.9.4"
 sha2 = "0.9"
 hex = "0.4"
 lazy_static = "1.4"
-#futures = "0.3"
 hmac = "0.11"
 digest = "0.9"
 typenum = "1.13"
@@ -76,3 +75,7 @@ harness = false
 name = "sign"
 path = "tests/sign.rs"
 harness = false
+
+[features]
+default = []
+bench = []
