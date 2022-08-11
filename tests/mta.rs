@@ -21,13 +21,11 @@ extern crate wasm_bindgen;
 #[cfg(all(test, target_arch = "wasm32"))]
 extern crate wasm_bindgen_test;
 
-extern crate emerald_city;
+use tss_wasm::curv::elliptic::curves::secp256_k1::FE;
+use tss_wasm::curv::elliptic::curves::traits::*;
 
-use emerald_city::curv::elliptic::curves::secp256_k1::FE;
-use emerald_city::curv::elliptic::curves::traits::*;
-
-use emerald_city::gg_2018::mta::*;
-use emerald_city::paillier::*;
+use tss_wasm::gg_2018::mta::*;
+use tss_wasm::paillier::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::*;

@@ -18,19 +18,17 @@ pub const BENCH_SAMPLE_SIZE: usize = 10;
 
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
-extern crate emerald_city;
 
-use self::emerald_city::curv::arithmetic::num_bigint::from;
-use self::emerald_city::curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use tss_wasm::curv::arithmetic::num_bigint::from;
+use tss_wasm::curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use tss_wasm::curv::cryptographic_primitives::hashing::traits::Hash;
+use tss_wasm::curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
+use tss_wasm::curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
+use tss_wasm::curv::elliptic::curves::secp256_k1::{FE, GE};
+use tss_wasm::curv::elliptic::curves::traits::*;
 
-use self::emerald_city::curv::cryptographic_primitives::hashing::traits::Hash;
-use self::emerald_city::curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
-use self::emerald_city::curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
-use self::emerald_city::curv::elliptic::curves::secp256_k1::{FE, GE};
-use self::emerald_city::curv::elliptic::curves::traits::*;
-
-use self::emerald_city::gg_2018::mta::*;
-use self::emerald_city::gg_2018::party_i::*;
+use tss_wasm::gg_2018::mta::*;
+use tss_wasm::gg_2018::party_i::*;
 
 pub fn keygen_t_n_parties(
     t: usize,
