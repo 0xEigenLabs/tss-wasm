@@ -1,19 +1,3 @@
-/*
-    Multi-party ECDSA
-
-    Copyright 2018 by Kzen Networks
-
-    This file is part of Multi-party ECDSA library
-    (https://github.com/KZen-networks/multi-party-ecdsa)
-
-    Multi-party ECDSA is free software: you can redistribute
-    it and/or modify it under the terms of the GNU General Public
-    License as published by the Free Software Foundation, either
-    version 3 of the License, or (at your option) any later version.
-
-    @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
-*/
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -58,12 +42,8 @@ pub enum ErrorSS {
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
 
-//#[cfg(target_arch = "wasm32")]
-//extern crate wasm_bindgen_futures;
-
 #[cfg(all(test, target_arch = "wasm32"))]
 extern crate wasm_bindgen_test;
-
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
