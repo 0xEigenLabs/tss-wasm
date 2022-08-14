@@ -1,9 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 #![allow(dead_code)]
 
-//use std::{env, time, time::Duration};
-//use super::secp256k1::{Message, PublicKey, SECP256K1};
-
 use crate::gg_2018::party_i::Signature;
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
