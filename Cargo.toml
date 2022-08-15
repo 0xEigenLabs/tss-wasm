@@ -5,11 +5,11 @@ edition = "2021"
 
 authors = [
     "Omer <omer@kzencorp.com>",
-    "Eigen Labs"
+    "Eigen Labs <stephen@ieigen.com>"
 ]
 description = "WASM/HW-friendly lightweight client application for threshold ECDSA"
-homepage = "https://github.com/ieigen"
-repository = "https://github.com/ieigen/tss-wasm"
+homepage = "https://github.com/0xEigenLabs"
+repository = "https://github.com/0xEigenLabs/tss-wasm"
 license = "GPL-3.0-or-later"
 
 
