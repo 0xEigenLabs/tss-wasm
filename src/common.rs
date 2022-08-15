@@ -7,18 +7,18 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use rand::{rngs::OsRng, RngCore};
 
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::JsFuture;
 use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
 
 use crate::log;
 
 use crate::curv::{
+    arithmetic::num_bigint::BigInt,
     arithmetic::traits::Converter,
     elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar},
-    arithmetic::num_bigint::BigInt,
 };
 
-use reqwest::{Client, Body};
+use reqwest::{Body, Client};
 use serde::{Deserialize, Serialize};
 
 pub type Key = String;
@@ -55,7 +55,6 @@ pub struct Params {
     pub threshold: String,
 }
 
-
 #[allow(dead_code)]
 pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> AEAD {
     let aes_key = aes_gcm::Key::from_slice(key);
@@ -88,35 +87,38 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Vec<u8> {
 
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
-pub async fn postb<T>(client: &Client, path: &str, body: T) -> Option<String>
+pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Option<String>
 where
     T: serde::ser::Serialize,
 {
-    let addr = "http://127.0.0.1:8000".to_string();
-    let retries = 3;
+    // let addr = "http://127.0.0.1:8000".to_string();
+    // let retries = 3;
     let url = format!("{}/{}", addr, path);
 
-    let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", HeaderValue::from_static("Content-Type:application/json; charset=utf-8"));
-    headers.insert("Accept", HeaderValue::from_static("application/json; charset=utf-8"));
+    // let mut headers = HeaderMap::new();
+    // headers.insert("Content-Type", HeaderValue::from_static("Content-Type:application/json; charset=utf-8"));
+    // headers.insert("Accept", HeaderValue::from_static("application/json; charset=utf-8"));
 
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build().unwrap();
+    // let client = reqwest::Client::builder()
+    //     .default_headers(headers)
+    //     .build().unwrap();
 
-    let mut res = client.post(url)
+    let res = client
+        .post(url)
         .header("Content-Type", "application/json; charset=utf-8")
         .json(&body)
-        .send().await;
+        .send()
+        .await;
 
-    if let Ok(mut res) = res {
-        return Some(res.text().await.unwrap())
+    if let Ok(res) = res {
+        return Some(res.text().await.unwrap());
     }
     None
 }
 
 pub async fn broadcast(
     client: &Client,
+    addr: &str,
     party_num: u16,
     round: &str,
     data: String,
@@ -125,12 +127,13 @@ pub async fn broadcast(
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, "set", entry).await.unwrap();
+    let res_body = postb(client, addr, "set", entry).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
 pub async fn sendp2p(
     client: &Client,
+    addr: &str,
     party_from: u16,
     party_to: u16,
     round: &str,
@@ -141,12 +144,13 @@ pub async fn sendp2p(
 
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, "set", entry).await.unwrap();
+    let res_body = postb(client, addr, "set", entry).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
 pub async fn poll_for_broadcasts(
     client: &Client,
+    addr: &str,
     party_num: u16,
     n: u16,
     //delay: Duration,
@@ -161,7 +165,7 @@ pub async fn poll_for_broadcasts(
             loop {
                 // add delay to allow the server to process request:
                 //thread::sleep(delay);
-                let res_body = postb(client, "get", index.clone()).await.unwrap();
+                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
@@ -176,6 +180,7 @@ pub async fn poll_for_broadcasts(
 
 pub async fn poll_for_p2p(
     client: &Client,
+    addr: &str,
     party_num: u16,
     n: u16,
     //delay: Duration,
@@ -190,7 +195,7 @@ pub async fn poll_for_p2p(
             loop {
                 // add delay to allow the server to process request:
                 //thread::sleep(delay);
-                let res_body = postb(client, "get", index.clone()).await.unwrap();
+                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
