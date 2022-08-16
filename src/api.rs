@@ -10,6 +10,7 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::Client;
 
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
@@ -31,6 +32,7 @@ use std::{fs, time};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GG18KeygenClientContext {
+    addr: String,
     params: Parameters,
     party_num_int: u16,
     uuid: String,
@@ -48,20 +50,38 @@ pub struct GG18KeygenClientContext {
     vss_scheme_vec: Option<Vec<VerifiableSS>>,
 }
 
+fn new_client_with_headers() -> Client {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("Content-Type:application/json; charset=utf-8"),
+    );
+    headers.insert(
+        "Accept",
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .unwrap()
+}
+
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_new_context(t: usize, n: usize) -> String {
-    let client = reqwest::Client::new();
+pub async fn gg18_keygen_client_new_context(addr: String, t: usize, n: usize) -> String {
+    let client = new_client_with_headers();
     //let delay = time::Duration::from_millis(25);
     let params = Parameters {
         threshold: t,
         share_count: n,
     };
 
-    let (party_num_int, uuid) = match signup(&client).await.unwrap() {
+    let (party_num_int, uuid) = match signup(&client, &addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
     serde_json::to_string(&GG18KeygenClientContext {
+        addr,
         params,
         party_num_int,
         uuid,
@@ -90,6 +110,7 @@ pub async fn gg18_keygen_client_round1(context: String) -> String {
 
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round1",
         serde_json::to_string(&bc_i).unwrap(),
@@ -100,6 +121,7 @@ pub async fn gg18_keygen_client_round1(context: String) -> String {
 
     let round1_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
         //delay,
@@ -129,6 +151,7 @@ pub async fn gg18_keygen_client_round2(context: String) -> String {
     // send ephemeral public keys and check commitments correctness
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round2",
         serde_json::to_string(&context.decom_i.as_ref().unwrap()).unwrap(),
@@ -139,6 +162,7 @@ pub async fn gg18_keygen_client_round2(context: String) -> String {
 
     let round2_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
         "round2",
@@ -207,6 +231,7 @@ pub async fn gg18_keygen_client_round3(context: String) -> String {
             let aead_pack_i = aes_encrypt(key_i, &plaintext);
             assert!(sendp2p(
                 &client,
+                &context.addr,
                 context.party_num_int,
                 i,
                 "round3",
@@ -221,6 +246,7 @@ pub async fn gg18_keygen_client_round3(context: String) -> String {
 
     let round3_ans_vec = poll_for_p2p(
         &client,
+        &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
         "round3",
@@ -256,6 +282,7 @@ pub async fn gg18_keygen_client_round4(context: String) -> String {
     let client = reqwest::Client::new();
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round4",
         serde_json::to_string(&context.vss_scheme.as_ref().unwrap()).unwrap(),
@@ -265,6 +292,7 @@ pub async fn gg18_keygen_client_round4(context: String) -> String {
     .is_ok());
     let round4_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
         "round4",
@@ -310,6 +338,7 @@ pub async fn gg18_keygen_client_round5(context: String) -> String {
     let client = reqwest::Client::new();
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round5",
         serde_json::to_string(&context.dlog_proof.as_ref().unwrap()).unwrap(),
@@ -319,6 +348,7 @@ pub async fn gg18_keygen_client_round5(context: String) -> String {
     .is_ok());
     let round5_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
         "round5",
@@ -367,15 +397,16 @@ use crate::common::{
     Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
 };
 
-pub async fn signup(client: &Client) -> Result<PartySignup, ()> {
+pub async fn signup(client: &Client, addr: &str) -> Result<PartySignup, ()> {
     let key = "signup-keygen".to_string();
-    let res_body = postb(client, "signupkeygen", key).await.unwrap();
+    let res_body = postb(client, addr, "signupkeygen", key).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
 #[wasm_bindgen]
 pub async fn gg18_keygen(t: usize, n: usize) -> String {
-    let client = reqwest::Client::new();
+    let client = new_client_with_headers();
+    let addr = "http://127.0.0.1:8000";
     //let delay = time::Duration::from_millis(25);
     let params = Parameters {
         threshold: t,
@@ -384,7 +415,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 
     let PARTIES = n.clone() as u16;
 
-    let (party_num_int, uuid) = match signup(&client).await.unwrap() {
+    let (party_num_int, uuid) = match signup(&client, addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
@@ -393,6 +424,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round1",
         serde_json::to_string(&bc_i).unwrap(),
@@ -403,6 +435,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 
     let round1_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         PARTIES,
         //delay,
@@ -421,6 +454,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
     // send ephemeral public keys and check commitments correctness
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round2",
         serde_json::to_string(&decom_i).unwrap(),
@@ -431,6 +465,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 
     let round2_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         PARTIES,
         //delay,
@@ -482,6 +517,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
             let aead_pack_i = aes_encrypt(key_i, &plaintext);
             assert!(sendp2p(
                 &client,
+                addr,
                 party_num_int,
                 i,
                 "round3",
@@ -496,6 +532,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 
     let round3_ans_vec = poll_for_p2p(
         &client,
+        addr,
         party_num_int,
         PARTIES,
         //delay,
@@ -524,6 +561,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
     // round 4: send vss commitments
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round4",
         serde_json::to_string(&vss_scheme).unwrap(),
@@ -533,6 +571,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
     .is_ok());
     let round4_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         PARTIES,
         //delay,
@@ -566,6 +605,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
     // round 5: send dlog proof
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round5",
         serde_json::to_string(&dlog_proof).unwrap(),
@@ -575,6 +615,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
     .is_ok());
     let round5_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         PARTIES,
         /*delay,*/ "round5",
@@ -616,6 +657,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
 #[wasm_bindgen]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GG18SignClientContext {
+    addr: String,
     party_keys: Keys,
     shared_keys: SharedKeys,
     party_id: u16,
@@ -657,6 +699,7 @@ pub struct GG18SignClientContext {
 
 #[wasm_bindgen]
 pub async fn gg18_sign_client_new_context(
+    addr: String,
     t: usize,
     n: usize,
     key_store: String,
@@ -667,7 +710,7 @@ pub async fn gg18_sign_client_new_context(
         Err(_e) => message_str.as_bytes().to_vec(),
     };
     // let message = &message[..];
-    let client = Client::new();
+    let client = new_client_with_headers();
 
     let (party_keys, shared_keys, party_id, vss_scheme_vec, paillier_key_vector, y_sum): (
         Keys,
@@ -679,11 +722,12 @@ pub async fn gg18_sign_client_new_context(
     ) = serde_json::from_str(&key_store).unwrap();
 
     //signup:
-    let (party_num_int, uuid) = match signup(&client).await.unwrap() {
+    let (party_num_int, uuid) = match signup(&client, &addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
     serde_json::to_string(&GG18SignClientContext {
+        addr,
         party_keys,
         shared_keys,
         party_id,
@@ -727,10 +771,11 @@ pub async fn gg18_sign_client_new_context(
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round0(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     // round 0: collect signers IDs
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round0",
         serde_json::to_string(&context.party_id).unwrap(),
@@ -740,6 +785,7 @@ pub async fn gg18_sign_client_round0(context: String) -> String {
     .is_ok());
     let round0_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         "round0",
@@ -781,7 +827,7 @@ pub async fn gg18_sign_client_round0(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round1(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     let (com, decommit) = context.sign_keys.as_ref().unwrap().phase1_broadcast();
     let (m_a_k, _) = MessageA::a(
         &context.sign_keys.as_ref().unwrap().k_i,
@@ -790,6 +836,7 @@ pub async fn gg18_sign_client_round1(context: String) -> String {
     );
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round1",
         serde_json::to_string(&(com.clone(), m_a_k)).unwrap(),
@@ -799,9 +846,9 @@ pub async fn gg18_sign_client_round1(context: String) -> String {
     .is_ok());
     let round1_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round1",
         context.uuid.clone(),
     )
@@ -817,7 +864,7 @@ pub async fn gg18_sign_client_round1(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round2(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     let mut j = 0;
     let mut bc1_vec: Vec<SignBroadcastPhase1> = Vec::new();
     let mut m_a_vec: Vec<MessageA> = Vec::new();
@@ -876,6 +923,7 @@ pub async fn gg18_sign_client_round2(context: String) -> String {
         if i != context.party_num_int {
             assert!(sendp2p(
                 &client,
+                &context.addr,
                 context.party_num_int,
                 i,
                 "round2",
@@ -891,6 +939,7 @@ pub async fn gg18_sign_client_round2(context: String) -> String {
 
     let round2_ans_vec = poll_for_p2p(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         "round2",
@@ -909,7 +958,7 @@ pub async fn gg18_sign_client_round2(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round3(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     let mut m_b_gamma_rec_vec: Vec<MessageB> = Vec::new();
     let mut m_b_w_rec_vec: Vec<MessageB> = Vec::new();
 
@@ -971,6 +1020,7 @@ pub async fn gg18_sign_client_round3(context: String) -> String {
 
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round3",
         serde_json::to_string(&delta_i).unwrap(),
@@ -980,6 +1030,7 @@ pub async fn gg18_sign_client_round3(context: String) -> String {
     .is_ok());
     let round3_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         //delay,
@@ -1006,10 +1057,11 @@ pub async fn gg18_sign_client_round3(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round4(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     // decommit to gamma_i
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round4",
         serde_json::to_string(&context.decommit.as_ref().unwrap()).unwrap(),
@@ -1019,6 +1071,7 @@ pub async fn gg18_sign_client_round4(context: String) -> String {
     .is_ok());
     let round4_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         //delay,
@@ -1083,10 +1136,11 @@ pub async fn gg18_sign_client_round4(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round5(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     //phase (5A)  broadcast commit
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round5",
         serde_json::to_string(&context.phase5_com.as_ref().unwrap()).unwrap(),
@@ -1096,6 +1150,7 @@ pub async fn gg18_sign_client_round5(context: String) -> String {
     .is_ok());
     let round5_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         //delay,
@@ -1120,10 +1175,11 @@ pub async fn gg18_sign_client_round5(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round6(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     //phase (5B)  broadcast decommit and (5B) ZK proof
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round6",
         serde_json::to_string(&(
@@ -1138,6 +1194,7 @@ pub async fn gg18_sign_client_round6(context: String) -> String {
     .is_ok());
     let round6_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         //delay,
@@ -1200,10 +1257,11 @@ pub async fn gg18_sign_client_round6(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round7(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round7",
         serde_json::to_string(&context.phase5_com2.as_ref().unwrap()).unwrap(),
@@ -1213,6 +1271,7 @@ pub async fn gg18_sign_client_round7(context: String) -> String {
     .is_ok());
     let round7_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         //delay,
@@ -1237,10 +1296,11 @@ pub async fn gg18_sign_client_round7(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round8(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     //phase (5B)  broadcast decommit and (5B) ZK proof
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round8",
         serde_json::to_string(&context.phase_5d_decom2.as_ref().unwrap()).unwrap(),
@@ -1250,6 +1310,7 @@ pub async fn gg18_sign_client_round8(context: String) -> String {
     .is_ok());
     let round8_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         "round8",
@@ -1294,10 +1355,11 @@ pub async fn gg18_sign_client_round8(context: String) -> String {
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round9(context: String) -> String {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
-    let client = Client::new();
+    let client = new_client_with_headers();
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
         &client,
+        &context.addr,
         context.party_num_int,
         "round9",
         serde_json::to_string(&context.s_i.as_ref().unwrap()).unwrap(),
@@ -1307,6 +1369,7 @@ pub async fn gg18_sign_client_round9(context: String) -> String {
     .is_ok());
     let round9_ans_vec = poll_for_broadcasts(
         &client,
+        &context.addr,
         context.party_num_int,
         context.threshould + 1,
         /*delay,*/ "round9",
@@ -1347,7 +1410,8 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         Err(_e) => message_str.as_bytes().to_vec(),
     };
     let message = &message[..];
-    let client = Client::new();
+    let client = new_client_with_headers();
+    let addr = "http://127.0.0.1:8000";
     // delay:
     //let delay = time::Duration::from_millis(25);
     // read key file
@@ -1365,13 +1429,14 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     let THRESHOLD = t as u16;
 
     //signup:
-    let (party_num_int, uuid) = match signup(&client).await.unwrap() {
+    let (party_num_int, uuid) = match signup(&client, addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
     // round 0: collect signers IDs
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round0",
         serde_json::to_string(&party_id).unwrap(),
@@ -1381,6 +1446,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round0_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1416,6 +1482,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     let (m_a_k, _) = MessageA::a(&sign_keys.k_i, &party_keys.ek, &[]);
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round1",
         serde_json::to_string(&(com.clone(), m_a_k)).unwrap(),
@@ -1425,6 +1492,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round1_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1489,6 +1557,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         if i != party_num_int {
             assert!(sendp2p(
                 &client,
+                addr,
                 party_num_int,
                 i,
                 "round2",
@@ -1504,6 +1573,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
 
     let round2_ans_vec = poll_for_p2p(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1557,6 +1627,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
 
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round3",
         serde_json::to_string(&delta_i).unwrap(),
@@ -1566,6 +1637,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round3_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1586,6 +1658,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     // decommit to gamma_i
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round4",
         serde_json::to_string(&decommit).unwrap(),
@@ -1595,6 +1668,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round4_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1634,6 +1708,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     //phase (5A)  broadcast commit
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round5",
         serde_json::to_string(&phase5_com).unwrap(),
@@ -1643,6 +1718,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round5_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1662,6 +1738,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     //phase (5B)  broadcast decommit and (5B) ZK proof
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round6",
         serde_json::to_string(&(
@@ -1676,6 +1753,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round6_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1719,6 +1797,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round7",
         serde_json::to_string(&phase5_com2).unwrap(),
@@ -1728,6 +1807,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round7_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1747,6 +1827,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     //phase (5B)  broadcast decommit and (5B) ZK proof
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round8",
         serde_json::to_string(&phase_5d_decom2).unwrap(),
@@ -1756,6 +1837,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round8_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         //delay,
@@ -1790,6 +1872,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
         &client,
+        addr,
         party_num_int,
         "round9",
         serde_json::to_string(&s_i).unwrap(),
@@ -1799,6 +1882,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     .is_ok());
     let round9_ans_vec = poll_for_broadcasts(
         &client,
+        addr,
         party_num_int,
         THRESHOLD + 1,
         /*delay,*/ "round9",
