@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "wasm-pack build --target web",
+    "build_node": "wasm-pack build --target nodejs",
     "test": "wasm-pack test --node"
   },
   "devDependencies": {
