@@ -10,8 +10,6 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 
-use crate::log;
-
 use crate::curv::{
     arithmetic::num_bigint::BigInt,
     arithmetic::traits::Converter,
@@ -91,17 +89,8 @@ pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Optio
 where
     T: serde::ser::Serialize,
 {
-    // let addr = "http://127.0.0.1:8000".to_string();
     // let retries = 3;
     let url = format!("{}/{}", addr, path);
-
-    // let mut headers = HeaderMap::new();
-    // headers.insert("Content-Type", HeaderValue::from_static("Content-Type:application/json; charset=utf-8"));
-    // headers.insert("Accept", HeaderValue::from_static("application/json; charset=utf-8"));
-
-    // let client = reqwest::Client::builder()
-    //     .default_headers(headers)
-    //     .build().unwrap();
 
     let res = client
         .post(url)

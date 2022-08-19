@@ -19,7 +19,7 @@ yarn test
 
 ```
 @ieigen/tss-wasm: 0.0.4
-@ieigen/tss-wasm-node: 0.0.1
+@ieigen/tss-wasm-node: 0.0.1, node 18.0+ is required
 ```
 
 # SM Server

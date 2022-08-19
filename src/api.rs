@@ -70,7 +70,6 @@ fn new_client_with_headers() -> Client {
 #[wasm_bindgen]
 pub async fn gg18_keygen_client_new_context(addr: String, t: usize, n: usize) -> String {
     let client = new_client_with_headers();
-    //let delay = time::Duration::from_millis(25);
     let params = Parameters {
         threshold: t,
         share_count: n,
@@ -124,7 +123,6 @@ pub async fn gg18_keygen_client_round1(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.params.share_count as u16,
-        //delay,
         "round1",
         context.uuid.clone(),
     )
@@ -407,7 +405,6 @@ pub async fn signup(client: &Client, addr: &str) -> Result<PartySignup, ()> {
 pub async fn gg18_keygen(t: usize, n: usize) -> String {
     let client = new_client_with_headers();
     let addr = "http://127.0.0.1:8000";
-    //let delay = time::Duration::from_millis(25);
     let params = Parameters {
         threshold: t,
         share_count: n.clone(),
@@ -438,7 +435,6 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
         addr,
         party_num_int,
         PARTIES,
-        //delay,
         "round1",
         uuid.clone(),
     )
@@ -468,7 +464,6 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
         addr,
         party_num_int,
         PARTIES,
-        //delay,
         "round2",
         uuid.clone(),
     )
@@ -535,7 +530,6 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
         addr,
         party_num_int,
         PARTIES,
-        //delay,
         "round3",
         uuid.clone(),
     )
@@ -574,7 +568,6 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
         addr,
         party_num_int,
         PARTIES,
-        //delay,
         "round4",
         uuid.clone(),
     )
@@ -618,7 +611,7 @@ pub async fn gg18_keygen(t: usize, n: usize) -> String {
         addr,
         party_num_int,
         PARTIES,
-        /*delay,*/ "round5",
+        "round5",
         uuid,
     )
     .await;
@@ -1033,7 +1026,6 @@ pub async fn gg18_sign_client_round3(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round3",
         context.uuid.clone(),
     )
@@ -1074,7 +1066,6 @@ pub async fn gg18_sign_client_round4(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round4",
         context.uuid.clone(),
     )
@@ -1153,7 +1144,6 @@ pub async fn gg18_sign_client_round5(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round5",
         context.uuid.clone(),
     )
@@ -1197,7 +1187,6 @@ pub async fn gg18_sign_client_round6(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round6",
         context.uuid.clone(),
     )
@@ -1274,7 +1263,6 @@ pub async fn gg18_sign_client_round7(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        //delay,
         "round7",
         context.uuid.clone(),
     )
@@ -1372,7 +1360,7 @@ pub async fn gg18_sign_client_round9(context: String) -> String {
         &context.addr,
         context.party_num_int,
         context.threshould + 1,
-        /*delay,*/ "round9",
+        "round9",
         context.uuid.clone(),
     )
     .await;
@@ -1412,11 +1400,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
     let message = &message[..];
     let client = new_client_with_headers();
     let addr = "http://127.0.0.1:8000";
-    // delay:
-    //let delay = time::Duration::from_millis(25);
-    // read key file
-    //let data = fs::read_to_string(env::args().nth(2).unwrap())
-    //    .expect("Unable to load keys, did you run keygen first? ");
     let (party_keys, shared_keys, party_id, vss_scheme_vec, paillier_key_vector, y_sum): (
         Keys,
         SharedKeys,
@@ -1449,7 +1432,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round0",
         uuid.clone(),
     )
@@ -1495,7 +1477,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round1",
         uuid.clone(),
     )
@@ -1576,7 +1557,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round2",
         uuid.clone(),
     )
@@ -1640,7 +1620,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round3",
         uuid.clone(),
     )
@@ -1671,7 +1650,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round4",
         uuid.clone(),
     )
@@ -1721,7 +1699,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round5",
         uuid.clone(),
     )
@@ -1756,7 +1733,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round6",
         uuid.clone(),
     )
@@ -1810,7 +1786,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round7",
         uuid.clone(),
     )
@@ -1840,7 +1815,6 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        //delay,
         "round8",
         uuid.clone(),
     )
@@ -1885,7 +1859,7 @@ pub async fn gg18_sign(t: usize, n: usize, key_store: String, message_str: Strin
         addr,
         party_num_int,
         THRESHOLD + 1,
-        /*delay,*/ "round9",
+        "round9",
         uuid,
     )
     .await;
