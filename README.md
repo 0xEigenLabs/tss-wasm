@@ -23,7 +23,7 @@ yarn test
 ```
 
 # SM Server
-The SM Server currently is built on [ZengoX Multiparty ECDSA](https://github.com/ZenGo-X/multi-party-ecdsa/blob/master/examples/gg18_sm_manager.rs), commitid: cae4322a5a3e69fa49509c69aeb82cfe2a67c9f8.
+The SM Server currently is built on modified [ZengoX Multiparty ECDSA](https://github.com/eigmax/multi-party-ecdsa)
 
 # licence
 GPL & Apache-2.0
