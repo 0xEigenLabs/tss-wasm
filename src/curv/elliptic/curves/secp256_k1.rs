@@ -123,7 +123,6 @@ impl Zeroize for FE {
 }
 
 impl ECScalar<SK> for Secp256k1Scalar {
-
     type ScalarLength = typenum::U32;
 
     fn new_random() -> Secp256k1Scalar {
@@ -620,8 +619,8 @@ mod tests {
     use crate::curv::elliptic::curves::secp256_k1::{FE, GE};
     use crate::curv::elliptic::curves::traits::ECPoint;
     use crate::curv::elliptic::curves::traits::ECScalar;
-    use serde_json;
     use crate::ErrorKey;
+    use serde_json;
 
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::*;
@@ -800,5 +799,4 @@ mod tests {
         let c2 = a * b;
         assert_eq!(c1.get_element(), c2.get_element());
     }
-
 }

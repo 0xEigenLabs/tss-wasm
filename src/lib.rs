@@ -9,10 +9,10 @@ extern crate num_traits;
 extern crate rand;
 extern crate zeroize;
 
+extern crate aes_gcm;
 extern crate cryptoxide;
 extern crate reqwest;
 extern crate sha2;
-extern crate aes_gcm;
 
 pub mod curv;
 pub mod gg_2018;
@@ -74,4 +74,3 @@ macro_rules! console_log {
     // `bare_bones`
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
-

@@ -24,17 +24,17 @@ use crate::paillier::{DecryptionKey, EncryptionKey, Paillier, RawCiphertext, Raw
 use crate::gg_2018::party_i::PartyPrivate;
 use crate::Error::{self, InvalidKey};
 
-use crate::paillier::Randomness;
 use crate::gg_2018::range_proofs::AliceProof;
-use crate::paillier::zkproofs::DLogStatement;
 use crate::num_traits::Pow;
+use crate::paillier::zkproofs::DLogStatement;
+use crate::paillier::Randomness;
 
 use crate::curv::elliptic::curves::secp256_k1::{Secp256k1Point, Secp256k1Scalar};
 use crate::paillier::traits::EncryptWithChosenRandomness;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
-    pub c: BigInt, // paillier encryption
+    pub c: BigInt,                     // paillier encryption
     pub range_proofs: Vec<AliceProof>, // proofs (using other parties' h1,h2,N_tilde) that the plaintext is small
 }
 
@@ -50,8 +50,7 @@ impl MessageA {
         a: &Secp256k1Scalar,
         alice_ek: &EncryptionKey,
         dlog_statements: &[DLogStatement],
-        ) -> (Self, BigInt){
-
+    ) -> (Self, BigInt) {
         let randomness = BigInt::sample_below(&alice_ek.n);
         let m_a = MessageA::a_with_predefined_randomness(a, alice_ek, &randomness, dlog_statements);
         (m_a, randomness)
@@ -91,7 +90,7 @@ impl MessageB {
         alice_ek: &EncryptionKey,
         m_a: MessageA,
         dlog_statements: &[DLogStatement],
-        ) -> Result<(Self, Secp256k1Scalar, BigInt, BigInt), Error> {
+    ) -> Result<(Self, Secp256k1Scalar, BigInt, BigInt), Error> {
         let beta_tag = BigInt::sample_below(&alice_ek.n);
         let randomness = BigInt::sample_below(&alice_ek.n);
         let (m_b, beta) = MessageB::b_with_predefined_randomness(
@@ -155,7 +154,11 @@ impl MessageB {
         ))
     }
 
-    pub fn verify_proofs_get_alpha(&self, dk: &DecryptionKey, a: &Secp256k1Scalar) -> Result<(Secp256k1Scalar, BigInt), Error> {
+    pub fn verify_proofs_get_alpha(
+        &self,
+        dk: &DecryptionKey,
+        a: &Secp256k1Scalar,
+    ) -> Result<(Secp256k1Scalar, BigInt), Error> {
         let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         let g: GE = ECPoint::generator();
         let alpha: FE = ECScalar::from(&alice_share.0);

@@ -4,13 +4,13 @@ use std::borrow::{Borrow, Cow};
 
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::curv::arithmetic::traits::*;
-use num_integer::Integer;
-use num_traits::One;
 use crate::paillier::traits::*;
 use crate::paillier::{
     DecryptionKey, EncryptionKey, Keypair, MinimalDecryptionKey, MinimalEncryptionKey, Paillier,
     RawCiphertext, RawPlaintext,
 };
+use num_integer::Integer;
+use num_traits::One;
 use serde::*;
 
 impl Keypair {
@@ -612,5 +612,4 @@ mod tests {
         let result: Result<EncryptionKey, _> = serde_json::from_str(&illformatted);
         assert!(result.is_err())
     }
-
 }

@@ -2,9 +2,9 @@
 
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::curv::arithmetic::traits::*;
-use num_traits::{One, Zero};
 use crate::paillier::traits::*;
 use crate::paillier::{Keypair, Paillier};
+use num_traits::{One, Zero};
 impl KeyGeneration<Keypair> for Paillier {
     fn keypair_with_modulus_size(bit_length: usize) -> Keypair {
         let p = BigInt::sample_prime(bit_length / 2);

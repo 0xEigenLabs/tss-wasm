@@ -9,21 +9,23 @@
 //! 1) In Bob's proofs `gamma` is sampled from `[0;q^2 * N]` and `tau` from `[0;q^3 * N_tilde]`.
 //! 2) A non-interactive version is implemented, with challenge `e` computed via Fiat-Shamir.
 
-use crate::curv::arithmetic::traits::*;
-use crate::curv::elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar};
-use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::arithmetic::num_bigint::BigInt;
+use crate::curv::arithmetic::traits::*;
+use crate::curv::elliptic::curves::secp256_k1::{
+    Secp256k1Point as Point, Secp256k1Scalar as Scalar,
+};
+use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use sha2::Sha256;
 
-use crate::sha2::Digest;
 use crate::curv::cryptographic_primitives::hashing::ext::DigestExt;
+use crate::sha2::Digest;
 
-use num_traits::pow::Pow;
-use crate::num_traits::One;
 use crate::num_integer::Integer;
+use crate::num_traits::One;
+use num_traits::pow::Pow;
 
-use crate::paillier::{EncryptionKey, Randomness};
 use crate::paillier::zkproofs::DLogStatement;
+use crate::paillier::{EncryptionKey, Randomness};
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -52,7 +54,7 @@ impl AliceZkpRound1 {
         let h1 = &dlog_statement.g;
         let h2 = &dlog_statement.ni;
         let N_tilde = &dlog_statement.N;
-//        let q_pow_3 = BigInt::pow(q.clone(), 3);
+        //        let q_pow_3 = BigInt::pow(q.clone(), 3);
         let alpha = BigInt::sample_below(&q.pow(3u32));
         let beta = BigInt::from_paillier_key(alice_ek);
         let gamma = BigInt::sample_below(&(q.pow(3u32) * N_tilde));
@@ -163,12 +165,7 @@ impl AliceProof {
         dlog_statement: &DLogStatement,
         r: &BigInt,
     ) -> Self {
-        let round1 = AliceZkpRound1::from(
-            alice_ek,
-            dlog_statement,
-            a,
-            Scalar::group_order(),
-        );
+        let round1 = AliceZkpRound1::from(alice_ek, dlog_statement, a, Scalar::group_order());
 
         let Gen = alice_ek.n.borrow() + 1u32;
         let e = Sha256::new()

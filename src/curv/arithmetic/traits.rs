@@ -14,8 +14,8 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/cryptography-utils/blob/master/LICENSE>
 */
 
-use std::marker::Sized;
 use num_bigint::BigUint;
+use std::marker::Sized;
 
 pub trait Converter {
     fn to_vec(n: &Self) -> Vec<u8>;

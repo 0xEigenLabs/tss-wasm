@@ -105,5 +105,4 @@ mod tests {
             Err(_e) => assert!(false),
         }
     }
-
 }
