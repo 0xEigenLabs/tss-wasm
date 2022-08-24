@@ -7,8 +7,8 @@
 
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::ErrorKey;
-use typenum::Unsigned;
 use generic_array::ArrayLength;
+use typenum::Unsigned;
 
 pub trait ECScalar<SK> {
     type ScalarLength: ArrayLength<u8> + Unsigned;

@@ -9,8 +9,8 @@
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::curv::elliptic::curves::secp256_k1::{FE, GE};
 use crate::curv::elliptic::curves::traits::*;
-use num_traits::One;
 use crate::ErrorSS::{self, VerifyShareError};
+use num_traits::One;
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ShamirSecretSharing {
     pub threshold: usize,   //t
@@ -418,5 +418,4 @@ mod tests {
         let w = l0 * secret_shares[0].clone() + l2 * secret_shares[2].clone();
         assert_eq!(w, secret_reconstructed);
     }
-
 }

@@ -6,6 +6,6 @@
 */
 
 pub mod constants;
+pub mod ext;
 pub mod hash_sha256;
 pub mod traits;
-pub mod ext;

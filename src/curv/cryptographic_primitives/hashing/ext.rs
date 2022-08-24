@@ -3,10 +3,12 @@ use hmac::crypto_mac::MacError;
 use hmac::{Hmac, Mac, NewMac};
 use typenum::Unsigned;
 
-use crate::curv::arithmetic::*;
-use crate::curv::elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar};
-use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::arithmetic::num_bigint::*;
+use crate::curv::arithmetic::*;
+use crate::curv::elliptic::curves::secp256_k1::{
+    Secp256k1Point as Point, Secp256k1Scalar as Scalar,
+};
+use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 
 pub trait DigestExt {
     fn input_bigint(&mut self, n: &BigInt);
@@ -43,10 +45,7 @@ pub trait DigestExt {
         self.input_scalar(scalar);
         self
     }
-    fn chain_scalars<'s>(
-        mut self,
-        scalars: impl IntoIterator<Item = &'s Scalar>,
-    ) -> Self
+    fn chain_scalars<'s>(mut self, scalars: impl IntoIterator<Item = &'s Scalar>) -> Self
     where
         Self: Sized,
     {

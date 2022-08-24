@@ -190,13 +190,15 @@ pub fn sign(t: usize, n: usize, ttag: usize, s: Vec<usize>) {
                 &party_keys_vec[s[ind]].ek,
                 m_a_vec[ind].clone(),
                 &[],
-            ).unwrap();
+            )
+            .unwrap();
             let (m_b_w, beta_wi, _, _) = MessageB::b(
                 &sign_keys_vec[i].w_i,
                 &party_keys_vec[s[ind]].ek,
                 m_a_vec[ind].clone(),
                 &[],
-            ).unwrap();
+            )
+            .unwrap();
 
             m_b_gamma_vec.push(m_b_gamma);
             beta_vec.push(beta_gamma);

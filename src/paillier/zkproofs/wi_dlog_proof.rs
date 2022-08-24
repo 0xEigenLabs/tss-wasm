@@ -14,15 +14,15 @@
 
 use std::iter;
 
-use crate::num_integer::Integer;
-use crate::curv::arithmetic::traits::*;
 use crate::curv::arithmetic::num_bigint::BigInt;
+use crate::curv::arithmetic::traits::*;
+use crate::num_integer::Integer;
 use serde::{Deserialize, Serialize};
 
 use crate::num_traits::One;
 use crate::num_traits::Pow;
-use sha2::Sha256;
 use digest::Digest;
+use sha2::Sha256;
 
 use std::error::Error;
 use std::fmt;
@@ -53,7 +53,6 @@ where
     let result_bytes = hasher.finalize();
     BigInt::from_bytes(&result_bytes[..])
 }
-
 
 const K: usize = 128;
 const K_PRIME: usize = 128;
@@ -128,11 +127,7 @@ impl CompositeDLogProof {
 
 pub fn legendre_symbol(a: &BigInt, p: &BigInt) -> i32 {
     let p_minus_1: BigInt = p - BigInt::one();
-    let pow = BigInt::mod_mul(
-        &p_minus_1,
-        &BigInt::mod_inv(&BigInt::from(2u32), p),
-        p,
-    );
+    let pow = BigInt::mod_mul(&p_minus_1, &BigInt::mod_inv(&BigInt::from(2u32), p), p);
     let ls = BigInt::mod_pow(a, &pow, p);
     if ls == BigInt::one() {
         1
