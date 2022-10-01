@@ -170,7 +170,7 @@ pub async fn poll_for_broadcasts(
             let index = Index { key };
             loop {
                 // add delay to allow the server to process request:
-                sleep(25).await;
+                sleep(100).await;
                 let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
@@ -200,8 +200,7 @@ pub async fn poll_for_p2p(
             let index = Index { key };
             loop {
                 // add delay to allow the server to process request:
-                //thread::sleep(delay);
-                sleep(25).await;
+                sleep(100).await;
                 let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {

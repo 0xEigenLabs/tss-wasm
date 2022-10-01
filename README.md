@@ -23,16 +23,32 @@ yarn build
 yarn test
 ```
 
-## Functional Test by NodeJS
+## Functional Test via NodeJS
 ```
 cargo build --examples --release
 ./target/release/examples/gg18_sm_manager
 
 # open another console
 yarn build_node
-node run_keygen_sign.js
+npm link @ieigen/tss-wasm-node
+node scripts/run_keygen_sign_node.js
+npm unlink @ieigen/tss-wasm-node
 ```
 
+## Functional Test via Web
+
+```
+cargo build --examples --release
+./target/release/examples/gg18_sm_manager
+
+# open another console
+yarn build_node
+export NODE_OPTIONS=--openssl-legacy-provider
+yarn webpack
+yarn webpack-dev-server
+```
+
+Open `http://localhost:8080/` in browser, check out the output in `console`.
 
 # licence
 GPL & Apache-2.0

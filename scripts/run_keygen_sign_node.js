@@ -1,4 +1,5 @@
-const thsig = import("./pkg");
+const {gg18} = require("@ieigen/tss-wasm-node");
+const workerpool = require('workerpool');
 
 var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }];
 var results = [];
@@ -55,21 +56,30 @@ async function sign(m, arg, key_store) {
   return sign_json;
 }
 
-thsig.then((m) => {
-  items.forEach(async function (item) {
-    res = await keygen(m, item);
-    console.log(item.idx, " ", res);
-    results.push(res);
+async function main() {
+  await Promise.all(
+    items.map(
+      async (item) => {
+        res = await keygen(gg18, item);
+        console.log("keygen done", item.idx, " ", res);
+        results.push(res);
+      }
+    )
+  )
 
-    if (results.length == items.length) {
-      console.log(results.length);
-      items.forEach(async function (item) {
-        if (item.idx < t + 1) {
+  await Promise.all(
+    items.map(
+      async (item) => {
+        if (item.idx < t+1) {
           console.log(item.idx, " ", results[item.idx]);
-          res = await sign(m, item, results[item.idx]);
+          res = await sign(gg18, item, results[item.idx]);
           console.log("Sign result: ", res);
         }
-      });
-    }
-  });
-});
+      }
+    )
+  )
+}
+
+main().then(() => {
+  console.log("Done");
+})
