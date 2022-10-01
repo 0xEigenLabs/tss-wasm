@@ -42,7 +42,7 @@ cargo build --examples --release
 ./target/release/examples/gg18_sm_manager
 
 # open another console
-yarn build_node
+yarn build
 export NODE_OPTIONS=--openssl-legacy-provider
 yarn webpack
 yarn webpack-dev-server

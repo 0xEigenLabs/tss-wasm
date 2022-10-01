@@ -84,28 +84,33 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Vec<u8> {
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
 #[cfg(target_arch = "wasm32")]
-pub async fn sleep(ms: i32) {
+pub async fn sleep(ms: u32) {
     let promise = js_sys::Promise::new(&mut |resolve, _| {
         web_sys::window()
             .unwrap()
-            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms)
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms as i32)
             .unwrap();
     });
     wasm_bindgen_futures::JsFuture::from(promise).await;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn sleep(ms: i32) {
+pub async fn sleep(ms: u32) {
     std::thread::sleep(core::time::Duration::from_millis(ms as u64));
 }
 
-pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Option<String>
+pub async fn postb<T>(
+    client: &Client,
+    addr: &str,
+    path: &str,
+    body: T,
+    delay: u32,
+) -> Option<String>
 where
     T: serde::ser::Serialize,
 {
     let url = format!("{}/{}", addr, path);
     let retries = 3;
-    let retry_delay = 250;
     for _i in 1..retries {
         let res = client
             .post(url.clone())
@@ -117,7 +122,7 @@ where
         if let Ok(res) = res {
             return Some(res.text().await.unwrap());
         }
-        sleep(retry_delay).await;
+        sleep(delay).await;
     }
     None
 }
@@ -129,11 +134,12 @@ pub async fn broadcast(
     round: &str,
     data: String,
     sender_uuid: String,
+    delay: u32,
 ) -> Result<(), ()> {
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, addr, "set", entry).await.unwrap();
+    let res_body = postb(client, addr, "set", entry, delay).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
@@ -145,12 +151,13 @@ pub async fn sendp2p(
     round: &str,
     data: String,
     sender_uuid: String,
+    delay: u32,
 ) -> Result<(), ()> {
     let key = format!("{}-{}-{}-{}", party_from, party_to, round, sender_uuid);
 
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, addr, "set", entry).await.unwrap();
+    let res_body = postb(client, addr, "set", entry, delay).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
@@ -159,9 +166,9 @@ pub async fn poll_for_broadcasts(
     addr: &str,
     party_num: u16,
     n: u16,
-    // delay: i32,
     round: &str,
     sender_uuid: String,
+    delay: u32,
 ) -> Vec<String> {
     let mut ans_vec = Vec::new();
     for i in 1..=n {
@@ -170,8 +177,9 @@ pub async fn poll_for_broadcasts(
             let index = Index { key };
             loop {
                 // add delay to allow the server to process request:
-                sleep(100).await;
-                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
+                let res_body = postb(client, addr, "get", index.clone(), delay)
+                    .await
+                    .unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
@@ -189,7 +197,7 @@ pub async fn poll_for_p2p(
     addr: &str,
     party_num: u16,
     n: u16,
-    //delay: Duration,
+    delay: u32,
     round: &str,
     sender_uuid: String,
 ) -> Vec<String> {
@@ -200,8 +208,9 @@ pub async fn poll_for_p2p(
             let index = Index { key };
             loop {
                 // add delay to allow the server to process request:
-                sleep(100).await;
-                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
+                let res_body = postb(client, addr, "get", index.clone(), delay)
+                    .await
+                    .unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);

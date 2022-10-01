@@ -159,7 +159,6 @@ async fn main() {
     /////////////////////////////////////////////////////////////////
     rocket::build()
         .mount("/", routes![get, set, signup_keygen, signup_sign])
-        //.attach(CORS)
         .attach(cors.to_cors().unwrap())
         .manage(db_mtx)
         .launch()

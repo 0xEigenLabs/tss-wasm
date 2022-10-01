@@ -11,7 +11,7 @@
     "blockchain"
   ],
   "scripts": {
-    "build": "wasm-pack build --target chrome --release",
+    "build": "wasm-pack build --target web --release",
     "build_node": "wasm-pack build --target nodejs --release",
     "test": "wasm-pack test --node"
   },
