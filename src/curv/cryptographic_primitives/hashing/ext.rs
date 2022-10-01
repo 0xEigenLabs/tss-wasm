@@ -1,6 +1,6 @@
 use digest::Digest;
 use hmac::crypto_mac::MacError;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use typenum::Unsigned;
 
 use crate::curv::arithmetic::num_bigint::*;

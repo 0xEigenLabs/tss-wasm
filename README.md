@@ -3,13 +3,6 @@ portable lightweight client application for threshold ECDSA (based on [GG18](htt
 1) Wasm
 2) HW friendly
 
-# Dev
-
-```
-yarn build
-yarn test
-```
-
 # Npm publish
 
 * node: yarn build_node
@@ -22,8 +15,24 @@ yarn test
 @ieigen/tss-wasm-node: 0.0.1, node 18.0+ is required
 ```
 
-# SM Server
-The SM Server currently is built on modified [ZengoX Multiparty ECDSA](https://github.com/eigmax/multi-party-ecdsa)
+# Test
+
+## Unit Test
+```
+yarn build
+yarn test
+```
+
+## Functional Test by NodeJS
+```
+cargo build --examples --release
+./target/release/examples/gg18_sm_manager
+
+# open another console
+yarn build_node
+node run_keygen_sign.js
+```
+
 
 # licence
 GPL & Apache-2.0

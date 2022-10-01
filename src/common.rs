@@ -1,4 +1,3 @@
-#![cfg(target_arch = "wasm32")]
 #![allow(dead_code)]
 
 use crate::gg_2018::party_i::Signature;
@@ -6,8 +5,7 @@ use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
 use rand::{rngs::OsRng, RngCore};
 
-use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::JsFuture;
 
 use crate::curv::{
@@ -85,6 +83,7 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Vec<u8> {
 
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
+#[cfg(target_arch = "wasm32")]
 pub async fn sleep(ms: i32) {
     let promise = js_sys::Promise::new(&mut |resolve, _| {
         web_sys::window()
@@ -93,6 +92,11 @@ pub async fn sleep(ms: i32) {
             .unwrap();
     });
     wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn sleep(ms: i32) {
+    std::thread::sleep(core::time::Duration::from_millis(ms as u64));
 }
 
 pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Option<String>

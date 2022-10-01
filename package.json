@@ -11,8 +11,8 @@
     "blockchain"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web",
-    "build_node": "wasm-pack build --target nodejs",
+    "build": "wasm-pack build --target web --release",
+    "build_node": "wasm-pack build --target nodejs --release",
     "test": "wasm-pack test --node"
   },
   "devDependencies": {
@@ -25,6 +25,7 @@
   },
   "author": "EigenLabs",
   "main": "index.js",
+  "license": "Apache-2.0",
   "files": [
     "pkg/*",
     "index.js"

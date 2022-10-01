@@ -3,12 +3,12 @@ const thsig = require("./pkg");
 var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }];
 var results = [];
 
-let t = 1;
+let t = 2;
 let n = 3;
+let addr = "127.0.0.1:8000"
 
 async function keygen(m, arg) {
-  // return await m.gg18_keygen(t, n);
-  context = await m.gg18_keygen_client_new_context(t, n);
+  context = await m.gg18_keygen_client_new_context(addr, t, n);
   console.log("keygen new context: ", context);
   context = await m.gg18_keygen_client_round1(context);
   console.log("keygen round1: ", context);
@@ -24,7 +24,6 @@ async function keygen(m, arg) {
 }
 
 async function sign(m, arg, key_store) {
-  // return await m.gg18_sign(t, n, key_store, "Hello Eigen");
   context = await m.gg18_sign_client_new_context(
     t,
     n,
