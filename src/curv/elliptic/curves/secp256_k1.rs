@@ -40,7 +40,6 @@ use std::sync::atomic;
 use zeroize::Zeroize;
 
 use super::secp256k1::curve::Scalar;
-use generic_array::GenericArray;
 
 lazy_static::lazy_static! {
     static ref CURVE_ORDER_: BigInt = BigInt::from_bytes_be(&CURVE_ORDER);

@@ -1,11 +1,10 @@
 #![cfg(target_arch = "wasm32")]
-
-use crate::log;
+#![allow(non_snake_case)]
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::JsFuture;
+//use crate::log;
+
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::gg_2018::mta::*;
@@ -13,6 +12,10 @@ use crate::gg_2018::party_i::*;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::Client;
 
+use crate::common::{
+    aes_decrypt, aes_encrypt, broadcast, poll_for_broadcasts, poll_for_p2p, postb, sendp2p, Entry,
+    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+};
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
     arithmetic::num_bigint::BigInt,
@@ -80,7 +83,7 @@ pub async fn gg18_keygen_client_new_context(
         share_count: n,
     };
 
-    let (party_num_int, uuid) = match signup(&client, &addr, delay).await.unwrap() {
+    let (party_num_int, uuid) = match signup_keygen(&client, &addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
@@ -405,16 +408,15 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> String {
     keygen_json
 }
 
-use crate::common::{
-    aes_decrypt, aes_encrypt, broadcast, poll_for_broadcasts, poll_for_p2p, postb, sendp2p, Entry,
-    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
-};
-
-pub async fn signup(client: &Client, addr: &str, delay: u32) -> Result<PartySignup, ()> {
+pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup, ()> {
     let key = "signup-keygen".to_string();
-    let res_body = postb(client, addr, "signupkeygen", key, delay)
-        .await
-        .unwrap();
+    let res_body = postb(client, addr, "signupkeygen", key).await.unwrap();
+    serde_json::from_str(&res_body).unwrap()
+}
+
+pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup, ()> {
+    let key = "signup-sign".to_string();
+    let res_body = postb(client, addr, "signupsign", key).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
@@ -486,7 +488,7 @@ pub async fn gg18_sign_client_new_context(
     ) = serde_json::from_str(&key_store).unwrap();
 
     //signup:
-    let (party_num_int, uuid) = match signup(&client, &addr, 10).await.unwrap() {
+    let (party_num_int, uuid) = match signup_sign(&client, &addr).await.unwrap() {
         PartySignup { number, uuid } => (number, uuid),
     };
 
@@ -600,6 +602,7 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
         &context.party_keys.ek,
         &[],
     );
+    //console_log!("sign 2");
     assert!(broadcast(
         &client,
         &context.addr,
@@ -611,6 +614,7 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
     )
     .await
     .is_ok());
+    //console_log!("sign 3");
     let round1_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -622,6 +626,7 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
     )
     .await;
 
+    //console_log!("sign 4");
     context.com = Some(com);
     context.decommit = Some(decommit);
     context.round1_ans_vec = Some(round1_ans_vec);

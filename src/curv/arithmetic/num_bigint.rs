@@ -5,13 +5,11 @@ use rand::thread_rng;
 
 use num_bigint::BigInt as BN;
 use num_bigint::RandBigInt;
-use num_bigint::Sign;
 use num_bigint::ToBigInt;
 use num_traits::cast::ToPrimitive;
 use num_traits::identities::Zero;
 use num_traits::Num;
 use num_traits::One;
-use std::convert::TryInto;
 use std::ops::{BitAnd, BitOr, Shl};
 
 impl Samplable for BigUint {

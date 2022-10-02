@@ -30,9 +30,7 @@ cargo build --examples --release
 
 # open another console
 yarn build_node
-npm link @ieigen/tss-wasm-node
 node scripts/run_keygen_sign_node.js
-npm unlink @ieigen/tss-wasm-node
 ```
 
 ## Functional Test via Web
@@ -44,8 +42,7 @@ cargo build --examples --release
 # open another console
 yarn build
 export NODE_OPTIONS=--openssl-legacy-provider
-yarn webpack
-yarn webpack-dev-server
+yarn webpack && yarn webpack-dev-server
 ```
 
 Open `http://localhost:8080/` in browser, check out the output in `console`.

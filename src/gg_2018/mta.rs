@@ -25,7 +25,6 @@ use crate::gg_2018::party_i::PartyPrivate;
 use crate::Error::{self, InvalidKey};
 
 use crate::gg_2018::range_proofs::AliceProof;
-use crate::num_traits::Pow;
 use crate::paillier::zkproofs::DLogStatement;
 use crate::paillier::Randomness;
 

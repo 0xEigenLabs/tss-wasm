@@ -8,6 +8,7 @@ let n = 3;
 let addr = "http://127.0.0.1:8000"
 
 async function keygen(m, arg, delay) {
+  console.log(m);
   let context = await m.gg18_keygen_client_new_context(addr, t, n, delay);
   console.log("keygen new context: ", context);
   context = await m.gg18_keygen_client_round1(context, delay);
@@ -55,12 +56,14 @@ async function sign(m, arg, key_store) {
   return sign_json;
 }
 
+/*
 async function main() {
+  const { gg18 } = await thsig;
   await Promise.all(
     items.map(
       async (item) => {
         let delay = Math.max(Math.random() % 5000, 1000);
-        res = await keygen(thsig, item, delay);
+        res = await keygen(gg18, item, delay);
         console.log("Keygen done", item.idx, " ", res);
         results.push(res);
       }
@@ -73,7 +76,7 @@ async function main() {
         if (item.idx < t+1) {
           let delay = Math.max(Math.random() % 5000, 1000);
           console.log(item.idx, " ", results[item.idx]);
-          res = await sign(thsig, item, results[item.idx], delay + 1);
+          res = await sign(gg18, item, results[item.idx], delay + 1);
           console.log("Sign result: ", res);
         }
       }
@@ -84,8 +87,8 @@ async function main() {
 main().then(() => {
   console.log("Done");
 })
+*/
 
-/*
 thsig.then((m) => {
   items.forEach(async function (item) {
     let delay = Math.max(Math.random() % 5000, 1000);
@@ -106,4 +109,3 @@ thsig.then((m) => {
     }
   });
 });
-*/

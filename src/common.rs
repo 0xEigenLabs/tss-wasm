@@ -99,13 +99,7 @@ pub async fn sleep(ms: u32) {
     std::thread::sleep(core::time::Duration::from_millis(ms as u64));
 }
 
-pub async fn postb<T>(
-    client: &Client,
-    addr: &str,
-    path: &str,
-    body: T,
-    delay: u32,
-) -> Option<String>
+pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Option<String>
 where
     T: serde::ser::Serialize,
 {
@@ -122,7 +116,6 @@ where
         if let Ok(res) = res {
             return Some(res.text().await.unwrap());
         }
-        sleep(delay).await;
     }
     None
 }
@@ -139,7 +132,7 @@ pub async fn broadcast(
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, addr, "set", entry, delay).await.unwrap();
+    let res_body = postb(client, addr, "set", entry).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
@@ -157,7 +150,7 @@ pub async fn sendp2p(
 
     let entry = Entry { key, value: data };
 
-    let res_body = postb(client, addr, "set", entry, delay).await.unwrap();
+    let res_body = postb(client, addr, "set", entry).await.unwrap();
     serde_json::from_str(&res_body).unwrap()
 }
 
@@ -176,10 +169,9 @@ pub async fn poll_for_broadcasts(
             let key = format!("{}-{}-{}", i, round, sender_uuid);
             let index = Index { key };
             loop {
+                sleep(delay).await;
                 // add delay to allow the server to process request:
-                let res_body = postb(client, addr, "get", index.clone(), delay)
-                    .await
-                    .unwrap();
+                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
@@ -208,9 +200,8 @@ pub async fn poll_for_p2p(
             let index = Index { key };
             loop {
                 // add delay to allow the server to process request:
-                let res_body = postb(client, addr, "get", index.clone(), delay)
-                    .await
-                    .unwrap();
+                sleep(delay).await;
+                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
                 let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);

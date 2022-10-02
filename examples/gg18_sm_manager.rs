@@ -167,4 +167,6 @@ async fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn main() {}
+fn main() {
+    panic!("Unimplemented")
+}
