@@ -122,7 +122,6 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> String {
         "round1",
         serde_json::to_string(&bc_i).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -164,7 +163,6 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> String {
         "round2",
         serde_json::to_string(&context.decom_i.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -247,7 +245,6 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> String {
                 "round3",
                 serde_json::to_string(&aead_pack_i).unwrap(),
                 context.uuid.clone(),
-                delay,
             )
             .await
             .is_ok());
@@ -299,7 +296,6 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> String {
         "round4",
         serde_json::to_string(&context.vss_scheme.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -357,7 +353,6 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> String {
         "round5",
         serde_json::to_string(&context.dlog_proof.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -546,7 +541,6 @@ pub async fn gg18_sign_client_round0(context: String, delay: u32) -> String {
         "round0",
         serde_json::to_string(&context.party_id).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -602,7 +596,6 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
         &context.party_keys.ek,
         &[],
     );
-    //console_log!("sign 2");
     assert!(broadcast(
         &client,
         &context.addr,
@@ -610,11 +603,9 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
         "round1",
         serde_json::to_string(&(com.clone(), m_a_k)).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
-    //console_log!("sign 3");
     let round1_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -626,7 +617,6 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> String {
     )
     .await;
 
-    //console_log!("sign 4");
     context.com = Some(com);
     context.decommit = Some(decommit);
     context.round1_ans_vec = Some(round1_ans_vec);
@@ -703,7 +693,6 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> String {
                 serde_json::to_string(&(m_b_gamma_send_vec[j].clone(), m_b_w_send_vec[j].clone()))
                     .unwrap(),
                 context.uuid.clone(),
-                delay,
             )
             .await
             .is_ok());
@@ -800,7 +789,6 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> String {
         "round3",
         serde_json::to_string(&delta_i).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -842,7 +830,6 @@ pub async fn gg18_sign_client_round4(context: String, delay: u32) -> String {
         "round4",
         serde_json::to_string(&context.decommit.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -922,7 +909,6 @@ pub async fn gg18_sign_client_round5(context: String, delay: u32) -> String {
         "round5",
         serde_json::to_string(&context.phase5_com.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -967,7 +953,6 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> String {
         ))
         .unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -1045,7 +1030,6 @@ pub async fn gg18_sign_client_round7(context: String, delay: u32) -> String {
         "round7",
         serde_json::to_string(&context.phase5_com2.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -1085,7 +1069,6 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> String {
         "round8",
         serde_json::to_string(&context.phase_5d_decom2.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());
@@ -1146,7 +1129,6 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
         "round9",
         serde_json::to_string(&context.s_i.as_ref().unwrap()).unwrap(),
         context.uuid.clone(),
-        delay,
     )
     .await
     .is_ok());

@@ -58,8 +58,8 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
 
     let key = "signup-keygen".to_string();
 
+    let mut hm = db_mtx.write().unwrap();
     let party_signup = {
-        let hm = db_mtx.read().unwrap();
         let value = hm.get(&key).unwrap();
         let client_signup: PartySignup = serde_json::from_str(value).unwrap();
         if client_signup.number < parties {
@@ -75,7 +75,6 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
         }
     };
 
-    let mut hm = db_mtx.write().unwrap();
     hm.insert(key, serde_json::to_string(&party_signup).unwrap());
     Json(Ok(party_signup))
 }
@@ -90,8 +89,8 @@ fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Part
     let threshold = params.threshold.parse::<u16>().unwrap();
     let key = "signup-sign".to_string();
 
+    let mut hm = db_mtx.write().unwrap();
     let party_signup = {
-        let hm = db_mtx.read().unwrap();
         let value = hm.get(&key).unwrap();
         let client_signup: PartySignup = serde_json::from_str(value).unwrap();
         if client_signup.number < threshold + 1 {
@@ -107,7 +106,6 @@ fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Part
         }
     };
 
-    let mut hm = db_mtx.write().unwrap();
     hm.insert(key, serde_json::to_string(&party_signup).unwrap());
     Json(Ok(party_signup))
 }

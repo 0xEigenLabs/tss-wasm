@@ -1,7 +1,6 @@
 const gg18 = require("../pkg");
 
 var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }];
-var results = [];
 
 let t = 1;
 let n = 3;
@@ -9,7 +8,7 @@ let addr = "http://127.0.0.1:8000"
 
 const delay_ms = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-async function keygen(m, arg, delay) {
+async function keygen(m, delay) {
   let context = await m.gg18_keygen_client_new_context(addr, t, n, delay);
   console.log("keygen new context: ");
   context = await m.gg18_keygen_client_round1(context, delay);
@@ -25,8 +24,8 @@ async function keygen(m, arg, delay) {
   return keygen_json;
 }
 
-async function sign(m, arg, key_store, delay) {
-  context = await m.gg18_sign_client_new_context(
+async function sign(m, key_store, delay) {
+  let context = await m.gg18_sign_client_new_context(
     addr,
     t,
     n,
@@ -58,26 +57,24 @@ async function sign(m, arg, key_store, delay) {
 }
 
 async function main() {
-  await Promise.all(
+  var results = await Promise.all(
     items.map(
       async (item) => {
-        let delay = Math.max(Math.random() % 5000, 1000);
-        delay_ms(delay);
-        res = await keygen(gg18, item, delay);
-        console.log("Keygen done", item.idx, " ", res);
-        results.push(res);
+        let delay = Math.max(Math.random() % 500, 100);
+        res = await keygen(gg18, delay);
+        return {idx: item.idx, res: res};
       }
     )
   )
 
+  console.log("sign items: ", results);
   await Promise.all(
-    items.map(
+    results.map(
       async (item) => {
-        if (item.idx < t+1) {
-          let delay = Math.max(Math.random() % 5000, 1000);
-          delay_ms(delay);
-          console.log(item.idx, " ", results[item.idx]);
-          res = await sign(gg18, item, results[item.idx], delay + 1);
+        if (item.idx < t + 1) {
+          let delay = Math.max(Math.random() % 500, 100);
+          //select random signer
+          res = await sign(gg18, item.res, delay);
           console.log("Sign result: ", res);
         }
       }

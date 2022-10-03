@@ -127,7 +127,6 @@ pub async fn broadcast(
     round: &str,
     data: String,
     sender_uuid: String,
-    delay: u32,
 ) -> Result<(), ()> {
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
@@ -144,7 +143,6 @@ pub async fn sendp2p(
     round: &str,
     data: String,
     sender_uuid: String,
-    delay: u32,
 ) -> Result<(), ()> {
     let key = format!("{}-{}-{}-{}", party_from, party_to, round, sender_uuid);
 

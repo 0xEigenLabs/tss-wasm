@@ -7,8 +7,9 @@ let t = 1;
 let n = 3;
 let addr = "http://127.0.0.1:8000"
 
+const delay_ms = ms => new Promise(resolve => setTimeout(resolve, ms))
+
 async function keygen(m, arg, delay) {
-  console.log(m);
   let context = await m.gg18_keygen_client_new_context(addr, t, n, delay);
   console.log("keygen new context: ", context);
   context = await m.gg18_keygen_client_round1(context, delay);
@@ -24,8 +25,8 @@ async function keygen(m, arg, delay) {
   return keygen_json;
 }
 
-async function sign(m, arg, key_store) {
-  context = await m.gg18_sign_client_new_context(
+async function sign(m, arg, key_store, delay) {
+  let context = await m.gg18_sign_client_new_context(
     addr,
     t,
     n,
@@ -58,13 +59,13 @@ async function sign(m, arg, key_store) {
 
 /*
 async function main() {
-  const { gg18 } = await thsig;
+  const gg18 = await thsig;
   await Promise.all(
     items.map(
       async (item) => {
-        let delay = Math.max(Math.random() % 5000, 1000);
+        let delay = Math.max(Math.random() % 500, 100);
         res = await keygen(gg18, item, delay);
-        console.log("Keygen done", item.idx, " ", res);
+        console.log("Keysign done", item.idx, " ", res);
         results.push(res);
       }
     )
@@ -74,7 +75,8 @@ async function main() {
     items.map(
       async (item) => {
         if (item.idx < t+1) {
-          let delay = Math.max(Math.random() % 5000, 1000);
+          let delay = Math.max(Math.random() % 500, 100);
+          delay_ms(delay);
           console.log(item.idx, " ", results[item.idx]);
           res = await sign(gg18, item, results[item.idx], delay + 1);
           console.log("Sign result: ", res);
@@ -88,10 +90,9 @@ main().then(() => {
   console.log("Done");
 })
 */
-
 thsig.then((m) => {
   items.forEach(async function (item) {
-    let delay = Math.max(Math.random() % 5000, 1000);
+    let delay = Math.max(Math.random() % 500, 100);
     res = await keygen(m, item, delay);
     console.log(item.idx, " ", res);
     results.push(res);
@@ -101,7 +102,7 @@ thsig.then((m) => {
       items.forEach(async function (item) {
         if (item.idx < t + 1) {
           console.log(item.idx, " ", results[item.idx]);
-          let delay = Math.max(Math.random() % 5000, 1000);
+          let delay = Math.max(Math.random() % 500, 100);
           res = await sign(m, item, results[item.idx], delay);
           console.log("Sign result: ", res);
         }
