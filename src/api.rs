@@ -14,7 +14,7 @@ use reqwest::Client;
 
 use crate::common::{
     aes_decrypt, aes_encrypt, broadcast, poll_for_broadcasts, poll_for_p2p, postb, sendp2p, Entry,
-    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN, check_sig
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
@@ -1165,6 +1165,9 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
         BigInt::from_bytes_be(sig.s.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
     ))
     .unwrap();
+    let message = &context.message[..];
+    let message_bn = BigInt::from_bytes_be(message);
+    check_sig(&sig.r, &sig.s, &message_bn, &context.y_sum);
 
     sign_json
 }

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::gg_2018::party_i::Signature;
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -212,52 +213,38 @@ pub async fn poll_for_p2p(
     ans_vec
 }
 
-/*
-pub fn check_sig(
-    r: &Scalar,
-    s: &Scalar,
-    msg: &BigInt,
-    pk: &Point,
-) {
+pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) {
+    use secp256k1::*;
+    let r_vec = BigInt::to_vec(&r.to_big_int());
+    let s_vec = BigInt::to_vec(&s.to_big_int());
 
-    let raw_msg = BigInt::to_bytes(msg);
-    let mut msg: Vec<u8> = Vec::new(); // padding
-    msg.extend(vec![0u8; 32 - raw_msg.len()]);
-    msg.extend(raw_msg.iter());
-
-    let msg = Message::from_slice(msg.as_slice()).unwrap();
-    let mut raw_pk = pk.to_bytes(false).to_vec();
-    if raw_pk.len() == 64 {
-        raw_pk.insert(0, 4u8);
+    let mut signature_a = [0u8; 64];
+    for i in 0..32 {
+        signature_a[i] = r_vec[i];
     }
-    let pk = PublicKey::from_slice(&raw_pk).unwrap();
+    for i in 0..32 {
+        signature_a[i + 32] = s_vec[i];
+    }
+    let signature = Signature::parse(&signature_a);
 
-    let mut compact: Vec<u8> = Vec::new();
-    let bytes_r = &r.to_bytes().to_vec();
-    compact.extend(vec![0u8; 32 - bytes_r.len()]);
-    compact.extend(bytes_r.iter());
+    let message = Message::parse(&BigInt::to_vec(msg).try_into().unwrap());
 
-    let bytes_s = &s.to_bytes().to_vec();
-    compact.extend(vec![0u8; 32 - bytes_s.len()]);
-    compact.extend(bytes_s.iter());
+    let pk_vec = BigInt::to_vec(&pk.bytes_compressed_to_big_int());
 
-    let secp_sig = Signature::from_compact(compact.as_slice()).unwrap();
+    let mut pubkey_a = [0u8; 65];
+    for i in 0..65 {
+        pubkey_a[i] = pk_vec[i];
+    }
+    let pubkey = PublicKey::parse(&pubkey_a).unwrap();
 
-    let is_correct = SECP256K1.verify(&msg, &secp_sig, &pk).is_ok();
-
-    println!("public key: {:}", pk);
-    println!("address: {:}", public_key_address(&pk));
-
-
-    assert!(is_correct);
+    assert!(verify(&message, &signature, &pubkey));
 }
 
-pub fn public_key_address(public_key: &PublicKey) -> web3::types::Address {
-    let public_key = public_key.serialize_uncompressed();
+// pub fn public_key_address(public_key: &PublicKey) -> web3::types::Address {
+//     let public_key = public_key.serialize_uncompressed();
 
-    debug_assert_eq!(public_key[0], 0x04);
-    let hash = web3::signing::keccak256(&public_key[1..]);
+//     debug_assert_eq!(public_key[0], 0x04);
+//     let hash = web3::signing::keccak256(&public_key[1..]);
 
-    web3::types::Address::from_slice(&hash[12..])
-}
-*/
+//     web3::types::Address::from_slice(&hash[12..])
+// }
