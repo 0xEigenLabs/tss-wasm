@@ -12,13 +12,22 @@ ident = "Rocket"
 [debug]
 address = "0.0.0.0"
 port = 8000
-workers = 1
-keep_alive = 0
+workers = 12
+keep_alive = 12
 log_level = "normal"
 
 [release]
 address = "0.0.0.0"
 port = 8000
 workers = 12
-keep_alive = 5
+keep_alive = 12
 log_level = "critical"
+
+[default.tls]
+certs = "examples/private/rsa_sha256_cert.pem"
+key = "examples/private/rsa_sha256_key.pem"
+
+[default.tls.mutual]
+ca_certs = "examples/private/ca_cert.pem"
+mandatory = true
+

@@ -4,7 +4,7 @@ var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }];
 
 let t = 1;
 let n = 3;
-let addr = "http://127.0.0.1:8000"
+let addr = "https://127.0.0.1:8000"
 
 const delay_ms = ms => new Promise(resolve => setTimeout(resolve, ms))
 

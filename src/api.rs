@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 //use crate::log;
-
 use web_sys::{Request, RequestInit, RequestMode, Response};
-
+use std::fs::File;
+use std::io::Read;
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
@@ -53,6 +53,24 @@ pub struct GG18KeygenClientContext {
     vss_scheme_vec: Option<Vec<VerifiableSS>>,
 }
 
+fn load_rocketCA_cert() -> reqwest::Result<reqwest::Certificate> {
+    let mut buf = Vec::new();
+    File::open("src/private/ca_cert.der")
+        .unwrap()
+        .read_to_end(&mut buf)
+        .unwrap();
+    reqwest::Certificate::from_der(&buf)
+}
+
+fn load_client_key_cert_pem() -> reqwest::Result<reqwest::tls::Identity>{
+    let mut buf = Vec::new();
+    File::open("private/client.pem")
+        .unwrap()
+        .read_to_end(&mut buf)
+        .unwrap();
+    reqwest::tls::Identity::from_pem(&buf)
+}
+
 fn new_client_with_headers() -> Client {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -63,9 +81,16 @@ fn new_client_with_headers() -> Client {
         "Accept",
         HeaderValue::from_static("application/json; charset=utf-8"),
     );
-
+    
+    let ca_cert = load_rocketCA_cert().unwrap();
+    let identity = load_client_key_cert_pem().unwrap();
+    
     reqwest::Client::builder()
+        .use_rustls_tls()
         .default_headers(headers)
+        // .add_root_certificate(cert)
+        .danger_accept_invalid_certs(true)
+        .identity(identity)
         .build()
         .unwrap()
 }
