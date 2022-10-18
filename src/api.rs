@@ -13,8 +13,8 @@ use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::Client;
 
 use crate::common::{
-    aes_decrypt, aes_encrypt, broadcast, poll_for_broadcasts, poll_for_p2p, postb, sendp2p, Entry,
-    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN, check_sig
+    aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
+    sendp2p, Entry, Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
