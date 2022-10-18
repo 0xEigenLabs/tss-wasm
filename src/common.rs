@@ -235,15 +235,24 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
         pubkey_a[i] = pk_vec[i];
     }
     let pubkey = secp256k1::PublicKey::parse(&pubkey_a).unwrap();
-
+    // crate::console_log!("public key: {:?}", pubkey);
+    // crate::console_log!("address: {:?}", public_key_address(&pubkey));
     secp256k1::verify(&message, &signature, &pubkey)
 }
 
-// pub fn public_key_address(public_key: &PublicKey) -> web3::types::Address {
-//     let public_key = public_key.serialize_uncompressed();
+pub fn public_key_address(public_key: &secp256k1::PublicKey) -> [u8; 20] {
+    let public_key = public_key.serialize();
 
-//     debug_assert_eq!(public_key[0], 0x04);
-//     let hash = web3::signing::keccak256(&public_key[1..]);
+    debug_assert_eq!(public_key[0], 0x04);
+    let hash = keccak256(&public_key[1..]);
+    hash[12..=32].try_into().unwrap()
+}
 
-//     web3::types::Address::from_slice(&hash[12..])
-// }
+pub fn keccak256(bytes: &[u8]) -> [u8; 32] {
+    use tiny_keccak::{Hasher, Keccak};
+    let mut output = [0u8; 32];
+    let mut hasher = Keccak::v256();
+    hasher.update(bytes);
+    hasher.finalize(&mut output);
+    output
+}
