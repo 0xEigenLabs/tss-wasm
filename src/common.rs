@@ -213,8 +213,7 @@ pub async fn poll_for_p2p(
     ans_vec
 }
 
-pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) {
-    use secp256k1::*;
+pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
     let r_vec = BigInt::to_vec(&r.to_big_int());
     let s_vec = BigInt::to_vec(&s.to_big_int());
 
@@ -225,9 +224,9 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) {
     for i in 0..32 {
         signature_a[i + 32] = s_vec[i];
     }
-    let signature = Signature::parse(&signature_a);
+    let signature = secp256k1::Signature::parse(&signature_a);
 
-    let message = Message::parse(&BigInt::to_vec(msg).try_into().unwrap());
+    let message = secp256k1::Message::parse(&BigInt::to_vec(msg).try_into().unwrap());
 
     let pk_vec = BigInt::to_vec(&pk.bytes_compressed_to_big_int());
 
@@ -235,9 +234,9 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) {
     for i in 0..65 {
         pubkey_a[i] = pk_vec[i];
     }
-    let pubkey = PublicKey::parse(&pubkey_a).unwrap();
+    let pubkey = secp256k1::PublicKey::parse(&pubkey_a).unwrap();
 
-    assert!(verify(&message, &signature, &pubkey));
+    secp256k1::verify(&message, &signature, &pubkey)
 }
 
 // pub fn public_key_address(public_key: &PublicKey) -> web3::types::Address {

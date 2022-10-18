@@ -1167,7 +1167,10 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
     .unwrap();
     let message = &context.message[..];
     let message_bn = BigInt::from_bytes_be(message);
-    check_sig(&sig.r, &sig.s, &message_bn, &context.y_sum);
+    if !check_sig(&sig.r, &sig.s, &message_bn, &context.y_sum) {
+        // TODO: Remove this panic when fix all unwrap()
+        panic!("check_sig failed");
+    }
 
     sign_json
 }
