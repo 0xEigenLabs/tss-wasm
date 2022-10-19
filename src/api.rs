@@ -9,6 +9,7 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
+use crate::log;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::Client;
 
@@ -1119,7 +1120,7 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> String {
 
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
+    let context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
     let client = new_client_with_headers();
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
@@ -1154,6 +1155,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
     s_i_vec.remove(usize::from(context.party_num_int - 1));
     let sig = context
         .local_sig
+        .clone()
         .unwrap()
         .output_signature(&s_i_vec)
         .expect("verification failed");
@@ -1165,9 +1167,21 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
         BigInt::from_bytes_be(sig.s.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
     ))
     .unwrap();
-    let message = &context.message[..];
-    let message_bn = BigInt::from_bytes_be(message);
-    if !check_sig(&sig.r, &sig.s, &message_bn, &context.y_sum) {
+    crate::console_log!("sign_json: {:?}", sign_json);
+
+    // let message = match hex::decode(&context.local_sig.unwrap().m) {
+    //     Ok(x) => x,
+    //     Err(_e) => context.message.to_vec(),
+    // };
+
+    // let message_bn = BigInt::from_bytes_be(&message[..]);
+
+    if !check_sig(
+        &sig.r,
+        &sig.s,
+        &context.local_sig.clone().unwrap().m,
+        &context.y_sum.clone(),
+    ) {
         // TODO: Remove this panic when fix all unwrap()
         panic!("check_sig failed");
     }

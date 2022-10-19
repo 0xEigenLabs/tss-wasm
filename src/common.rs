@@ -2,6 +2,7 @@
 
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::gg_2018::party_i::Signature;
+use crate::log;
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
 use rand::{rngs::OsRng, RngCore};
@@ -224,28 +225,26 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
     for i in 0..32 {
         signature_a[i + 32] = s_vec[i];
     }
+
     let signature = secp256k1::Signature::parse(&signature_a);
 
-    let message = secp256k1::Message::parse(&BigInt::to_vec(msg).try_into().unwrap());
+    let msg_vec = BigInt::to_vec(msg);
 
-    let pk_vec = BigInt::to_vec(&pk.bytes_compressed_to_big_int());
+    let message = secp256k1::Message::parse(&msg_vec.try_into().unwrap());
 
-    let mut pubkey_a = [0u8; 65];
-    for i in 0..65 {
-        pubkey_a[i] = pk_vec[i];
-    }
+    let pubkey_a = pk.get_element().serialize();
+
     let pubkey = secp256k1::PublicKey::parse(&pubkey_a).unwrap();
-    // crate::console_log!("public key: {:?}", pubkey);
-    // crate::console_log!("address: {:?}", public_key_address(&pubkey));
+    crate::console_log!("pubkey: {:?}", pubkey);
+    crate::console_log!("address: {:?}", public_key_address(&pubkey));
     secp256k1::verify(&message, &signature, &pubkey)
 }
 
 pub fn public_key_address(public_key: &secp256k1::PublicKey) -> [u8; 20] {
     let public_key = public_key.serialize();
-
     debug_assert_eq!(public_key[0], 0x04);
     let hash = keccak256(&public_key[1..]);
-    hash[12..=32].try_into().unwrap()
+    hash[12..32].try_into().unwrap()
 }
 
 pub fn keccak256(bytes: &[u8]) -> [u8; 32] {
