@@ -1,4 +1,5 @@
 const gg18 = require('../pkg')
+const ethers = require('ethers')
 
 var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }]
 
@@ -30,7 +31,7 @@ async function sign(m, key_store, delay) {
     t,
     n,
     key_store,
-    '113e55d3447e0a5373eadd1fd430216ec57c03bf3e6e4457635f849b396e4563',
+    ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Hello Eigen')).slice(2),
   )
   console.log('sign new context: ', context)
   context = await m.gg18_sign_client_round0(context, delay)
