@@ -39,6 +39,7 @@ libsecp256k1 = "0.3.2"
 reqwest = { version = "0.11.11", features = ["json"] }
 aes-gcm = "0.9.4"
 sha2 = "0.9"
+sha3 = "0.10.6"
 hex = "0.4"
 lazy_static = "1.4"
 hmac = "0.11"
