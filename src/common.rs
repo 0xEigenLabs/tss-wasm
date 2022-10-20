@@ -1,6 +1,11 @@
 #![allow(dead_code)]
 
+use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::gg_2018::party_i::Signature;
+
+#[cfg(target_arch = "wasm32")]
+use crate::log;
+
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
 use rand::{rngs::OsRng, RngCore};
@@ -212,52 +217,47 @@ pub async fn poll_for_p2p(
     ans_vec
 }
 
-/*
-pub fn check_sig(
-    r: &Scalar,
-    s: &Scalar,
-    msg: &BigInt,
-    pk: &Point,
-) {
+pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
+    let r_vec = BigInt::to_vec(&r.to_big_int());
+    let s_vec = BigInt::to_vec(&s.to_big_int());
 
-    let raw_msg = BigInt::to_bytes(msg);
-    let mut msg: Vec<u8> = Vec::new(); // padding
-    msg.extend(vec![0u8; 32 - raw_msg.len()]);
-    msg.extend(raw_msg.iter());
-
-    let msg = Message::from_slice(msg.as_slice()).unwrap();
-    let mut raw_pk = pk.to_bytes(false).to_vec();
-    if raw_pk.len() == 64 {
-        raw_pk.insert(0, 4u8);
+    let mut signature_a = [0u8; 64];
+    for i in 0..32 {
+        signature_a[i] = r_vec[i];
     }
-    let pk = PublicKey::from_slice(&raw_pk).unwrap();
+    for i in 0..32 {
+        signature_a[i + 32] = s_vec[i];
+    }
 
-    let mut compact: Vec<u8> = Vec::new();
-    let bytes_r = &r.to_bytes().to_vec();
-    compact.extend(vec![0u8; 32 - bytes_r.len()]);
-    compact.extend(bytes_r.iter());
+    let signature = secp256k1::Signature::parse(&signature_a);
 
-    let bytes_s = &s.to_bytes().to_vec();
-    compact.extend(vec![0u8; 32 - bytes_s.len()]);
-    compact.extend(bytes_s.iter());
+    let msg_vec = BigInt::to_vec(msg);
 
-    let secp_sig = Signature::from_compact(compact.as_slice()).unwrap();
+    let message = secp256k1::Message::parse(&msg_vec.try_into().unwrap());
 
-    let is_correct = SECP256K1.verify(&msg, &secp_sig, &pk).is_ok();
+    let pubkey_a = pk.get_element().serialize();
 
-    println!("public key: {:}", pk);
-    println!("address: {:}", public_key_address(&pk));
+    let pubkey = secp256k1::PublicKey::parse(&pubkey_a).unwrap();
 
-
-    assert!(is_correct);
+    #[cfg(target_arch = "wasm32")]
+    crate::console_log!("pubkey: {:?}", pubkey);
+    #[cfg(target_arch = "wasm32")]
+    crate::console_log!("address: {:?}", hex::encode(public_key_address(&pubkey)));
+    secp256k1::verify(&message, &signature, &pubkey)
 }
 
-pub fn public_key_address(public_key: &PublicKey) -> web3::types::Address {
-    let public_key = public_key.serialize_uncompressed();
-
+pub fn public_key_address(public_key: &secp256k1::PublicKey) -> [u8; 20] {
+    let public_key = public_key.serialize();
     debug_assert_eq!(public_key[0], 0x04);
-    let hash = web3::signing::keccak256(&public_key[1..]);
-
-    web3::types::Address::from_slice(&hash[12..])
+    let hash = keccak256(&public_key[1..]);
+    hash[12..32].try_into().unwrap()
 }
-*/
+
+pub fn keccak256(bytes: &[u8]) -> [u8; 32] {
+    use tiny_keccak::{Hasher, Keccak};
+    let mut output = [0u8; 32];
+    let mut hasher = Keccak::v256();
+    hasher.update(bytes);
+    hasher.finalize(&mut output);
+    output
+}

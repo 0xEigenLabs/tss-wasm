@@ -9,12 +9,13 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
+use crate::log;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::Client;
 
 use crate::common::{
-    aes_decrypt, aes_encrypt, broadcast, poll_for_broadcasts, poll_for_p2p, postb, sendp2p, Entry,
-    Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
+    sendp2p, Entry, Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
@@ -1119,7 +1120,7 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> String {
 
 #[wasm_bindgen]
 pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
+    let context = serde_json::from_str::<GG18SignClientContext>(&context).unwrap();
     let client = new_client_with_headers();
     //////////////////////////////////////////////////////////////////////////////
     assert!(broadcast(
@@ -1154,17 +1155,38 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
     s_i_vec.remove(usize::from(context.party_num_int - 1));
     let sig = context
         .local_sig
+        .clone()
         .unwrap()
         .output_signature(&s_i_vec)
         .expect("verification failed");
 
-    let sign_json = serde_json::to_string(&(
-        "r",
-        BigInt::from_bytes_be(sig.r.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
-        "s",
-        BigInt::from_bytes_be(sig.s.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
-    ))
+    let sign_json = serde_json::to_string(&vec![
+        //"r",
+        sig.r.to_big_int().to_hex(),
+        //"s",
+        sig.s.to_big_int().to_hex(),
+        //"v"
+        sig.recid.to_string(),
+    ])
     .unwrap();
+    crate::console_log!("sign_json: {:?}", sign_json);
+
+    // let message = match hex::decode(&context.local_sig.unwrap().m) {
+    //     Ok(x) => x,
+    //     Err(_e) => context.message.to_vec(),
+    // };
+
+    // let message_bn = BigInt::from_bytes_be(&message[..]);
+
+    if !check_sig(
+        &sig.r,
+        &sig.s,
+        &context.local_sig.clone().unwrap().m,
+        &context.y_sum.clone(),
+    ) {
+        // TODO: Remove this panic when fix all unwrap()
+        panic!("check_sig failed");
+    }
 
     sign_json
 }
