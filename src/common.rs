@@ -2,7 +2,10 @@
 
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::gg_2018::party_i::Signature;
+
+#[cfg(target_arch = "wasm32")]
 use crate::log;
+
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
 use rand::{rngs::OsRng, RngCore};
@@ -235,8 +238,11 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
     let pubkey_a = pk.get_element().serialize();
 
     let pubkey = secp256k1::PublicKey::parse(&pubkey_a).unwrap();
+
+    #[cfg(target_arch = "wasm32")]
     crate::console_log!("pubkey: {:?}", pubkey);
-    crate::console_log!("address: {:?}", public_key_address(&pubkey));
+    #[cfg(target_arch = "wasm32")]
+    crate::console_log!("address: {:?}", hex::encode(public_key_address(&pubkey)));
     secp256k1::verify(&message, &signature, &pubkey)
 }
 

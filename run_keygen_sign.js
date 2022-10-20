@@ -31,7 +31,7 @@ async function sign(m, arg, key_store, delay) {
     t,
     n,
     key_store,
-    "Hello Eigen"
+    ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Hello Eigen')).slice(2)
   );
   console.log("sign new context: ", context);
   context = await m.gg18_sign_client_round0(context, delay);

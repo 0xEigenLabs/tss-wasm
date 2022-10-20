@@ -139,6 +139,7 @@ pub struct Phase5DDecom2 {
 pub struct Signature {
     pub r: FE,
     pub s: FE,
+    pub recid: u8,
 }
 
 impl Keys {
@@ -641,9 +642,30 @@ impl LocalSignature {
         }
     }
     pub fn output_signature(&self, s_vec: &Vec<FE>) -> Result<Signature, Error> {
-        let s = s_vec.iter().fold(self.s_i.clone(), |acc, x| acc + x);
+        let mut s = s_vec.iter().fold(self.s_i.clone(), |acc, x| acc + x);
         let r: FE = ECScalar::from(&self.R.x_coor().unwrap().mod_floor(&FE::q()));
-        let sig = Signature { r, s };
+
+        /*
+         Calculate recovery id - it is not possible to compute the public key out of the signature
+         itself. Recovery id is used to enable extracting the public key uniquely.
+         1. id = R.y & 1
+         2. if (s > curve.q / 2) id = id ^ 1
+        */
+        let ry: BigInt = self
+            .R
+            .y_coor()
+            .ok_or(Error::InvalidSig)?
+            .mod_floor(&FE::q());
+        let is_ry_odd = ry.test_bit(0);
+        let mut recid = if is_ry_odd { 1 } else { 0 };
+        let s_bn = s.clone().to_big_int();
+        let s_tag_bn = &FE::q() - &s_bn;
+        if s_bn > s_tag_bn {
+            s = ECScalar::from(&s_tag_bn);
+            recid ^= 1;
+        }
+
+        let sig = Signature { r, s, recid };
         let ver = verify(&sig, &self.y, &self.m).is_ok();
         match ver {
             true => Ok(sig),

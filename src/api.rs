@@ -1160,12 +1160,14 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> String {
         .output_signature(&s_i_vec)
         .expect("verification failed");
 
-    let sign_json = serde_json::to_string(&(
-        "r",
-        BigInt::from_bytes_be(sig.r.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
-        "s",
-        BigInt::from_bytes_be(sig.s.to_big_int().to_bytes_be().as_ref()).to_str_radix(16),
-    ))
+    let sign_json = serde_json::to_string(&vec![
+        //"r",
+        sig.r.to_big_int().to_hex(),
+        //"s",
+        sig.s.to_big_int().to_hex(),
+        //"v"
+        sig.recid.to_string(),
+    ])
     .unwrap();
     crate::console_log!("sign_json: {:?}", sign_json);
 

@@ -8,6 +8,7 @@ let n = 3
 let addr = 'http://127.0.0.1:8000'
 
 const delay_ms = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const digest = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Hello Eigen'))
 
 async function keygen(m, delay) {
   let context = await m.gg18_keygen_client_new_context(addr, t, n, delay)
@@ -31,7 +32,7 @@ async function sign(m, key_store, delay) {
     t,
     n,
     key_store,
-    ethers.utils.keccak256(ethers.utils.toUtf8Bytes('Hello Eigen')).slice(2),
+    digest.slice(2)
   )
   console.log('sign new context: ', context)
   context = await m.gg18_sign_client_round0(context, delay)
@@ -72,8 +73,16 @@ async function main() {
       if (item.idx < t + 1) {
         let delay = Math.max(Math.random() % 500, 100)
         //select random signer
-        res = await sign(gg18, item.res, delay)
+        res = JSON.parse(await sign(gg18, item.res, delay))
         console.log('Sign result: ', res)
+        // recover the address
+        console.log("digest", digest);
+        let address = ethers.utils.recoverAddress(digest, {
+          r: "0x"+res[0],
+          s: "0x"+res[1],
+          v: res[2]
+        })
+        console.log("recover address by etherjs", address)
       }
     }),
   )
