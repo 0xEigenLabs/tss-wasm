@@ -21,6 +21,7 @@ use crate::curv::{
 
 use reqwest::{Body, Client};
 use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
 
 pub type Key = String;
 
@@ -242,7 +243,10 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> bool {
     #[cfg(target_arch = "wasm32")]
     crate::console_log!("pubkey: {:?}", pubkey);
     #[cfg(target_arch = "wasm32")]
-    crate::console_log!("address: {:?}", hex::encode(public_key_address(&pubkey)));
+    crate::console_log!(
+        "address: {:?}",
+        checksum(&hex::encode(public_key_address(&pubkey)))
+    );
     secp256k1::verify(&message, &signature, &pubkey)
 }
 
@@ -260,4 +264,31 @@ pub fn keccak256(bytes: &[u8]) -> [u8; 32] {
     hasher.update(bytes);
     hasher.finalize(&mut output);
     output
+}
+
+const PREFIX: &str = "0x";
+
+pub fn checksum(address: &str) -> String {
+    let stripped = String::from(address.to_ascii_lowercase().trim_start_matches(PREFIX));
+
+    let mut hasher = Keccak256::new();
+    hasher.update(stripped);
+    let hash_vec = hasher.finalize().to_vec();
+    let hash = hex::encode(hash_vec);
+
+    let mut checksum = String::new();
+    checksum.push_str(PREFIX);
+
+    for (pos, char) in hash.chars().enumerate() {
+        if pos > 39 {
+            break;
+        }
+        if u32::from_str_radix(&char.to_string()[..], 16).unwrap() > 7 {
+            checksum.push_str(&address[pos + 2..pos + 3].to_ascii_uppercase());
+        } else {
+            checksum.push_str(&address[pos + 2..pos + 3].to_ascii_lowercase());
+        }
+    }
+
+    checksum
 }
