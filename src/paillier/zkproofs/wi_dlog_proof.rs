@@ -39,6 +39,7 @@ impl fmt::Display for IncorrectProof {
 impl Error for IncorrectProof {}
 
 use std::borrow::Borrow;
+#[allow(dead_code)]
 pub fn compute_digest<IT>(it: IT) -> BigInt
 where
     IT: Iterator,
@@ -53,9 +54,11 @@ where
     let result_bytes = hasher.finalize();
     BigInt::from_bytes(&result_bytes[..])
 }
-
+#[allow(dead_code)]
 const K: usize = 128;
+#[allow(dead_code)]
 const K_PRIME: usize = 128;
+#[allow(dead_code)]
 const SAMPLE_S: usize = 256;
 
 /// Witness Indistinguishable Proof of knowledge of discrete log with composite modulus.
@@ -77,6 +80,7 @@ pub struct DLogStatement {
 }
 
 impl CompositeDLogProof {
+    #[allow(dead_code)]
     pub fn prove(statement: &DLogStatement, secret: &BigInt) -> CompositeDLogProof {
         //   pub fn prove(statement: &DLogStatement, secret: &BigInt, dk: &DecryptionKey) -> DLogProof{
 
@@ -97,7 +101,7 @@ impl CompositeDLogProof {
 
         CompositeDLogProof { x, y }
     }
-
+    #[allow(dead_code)]
     pub fn verify(&self, statement: &DLogStatement) -> Result<(), IncorrectProof> {
         //assert N > 2^k
         assert!(statement.N > BigInt::from(2u32).pow(K as u32));
@@ -124,7 +128,7 @@ impl CompositeDLogProof {
         }
     }
 }
-
+#[allow(dead_code)]
 pub fn legendre_symbol(a: &BigInt, p: &BigInt) -> i32 {
     let p_minus_1: BigInt = p - BigInt::one();
     let pow = BigInt::mod_mul(&p_minus_1, &BigInt::mod_inv(&BigInt::from(2u32), p), p);
