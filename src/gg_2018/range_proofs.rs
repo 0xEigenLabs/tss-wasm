@@ -11,10 +11,8 @@
 
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::curv::arithmetic::traits::*;
-use crate::curv::elliptic::curves::secp256_k1::{
-    Secp256k1Point as Point, Secp256k1Scalar as Scalar,
-};
-use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
+use crate::curv::elliptic::curves::secp256_k1::Secp256k1Scalar as Scalar;
+use crate::curv::elliptic::curves::traits::ECScalar;
 use sha2::Sha256;
 
 use crate::curv::cryptographic_primitives::hashing::ext::DigestExt;
@@ -25,11 +23,11 @@ use crate::num_traits::One;
 use num_traits::pow::Pow;
 
 use crate::paillier::zkproofs::DLogStatement;
-use crate::paillier::{EncryptionKey, Randomness};
+use crate::paillier::EncryptionKey;
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use zeroize::Zeroize;
+// use zeroize::Zeroize;
 
 /// Represents the first round of the interactive version of the proof
 //#[derive(Zeroize)]

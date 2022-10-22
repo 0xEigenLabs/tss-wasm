@@ -18,7 +18,7 @@ use crate::curv::arithmetic::traits::Samplable;
 use crate::curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 use crate::curv::elliptic::curves::secp256_k1::{FE, GE};
 use crate::curv::elliptic::curves::traits::*;
-use crate::paillier::{Add, Decrypt, Encrypt, Mul};
+use crate::paillier::{Add, Decrypt, Mul};
 use crate::paillier::{DecryptionKey, EncryptionKey, Paillier, RawCiphertext, RawPlaintext};
 
 use crate::gg_2018::party_i::PartyPrivate;
@@ -28,7 +28,7 @@ use crate::gg_2018::range_proofs::AliceProof;
 use crate::paillier::zkproofs::DLogStatement;
 use crate::paillier::Randomness;
 
-use crate::curv::elliptic::curves::secp256_k1::{Secp256k1Point, Secp256k1Scalar};
+use crate::curv::elliptic::curves::secp256_k1::Secp256k1Scalar;
 use crate::paillier::traits::EncryptWithChosenRandomness;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

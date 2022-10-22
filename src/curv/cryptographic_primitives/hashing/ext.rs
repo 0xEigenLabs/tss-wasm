@@ -1,10 +1,10 @@
 use digest::Digest;
-use hmac::crypto_mac::MacError;
-use hmac::{Hmac, Mac};
-use typenum::Unsigned;
+// use hmac::crypto_mac::MacError;
+// use hmac::{Hmac, Mac};
+// use typenum::Unsigned;
 
-use crate::curv::arithmetic::num_bigint::*;
-use crate::curv::arithmetic::*;
+use crate::curv::arithmetic::num_bigint::BigInt;
+// use crate::curv::arithmetic::*;
 use crate::curv::elliptic::curves::secp256_k1::{
     Secp256k1Point as Point, Secp256k1Scalar as Scalar,
 };

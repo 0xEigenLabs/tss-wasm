@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use crate::gg_2018::party_i::Signature;
+// use crate::gg_2018::party_i::Signature;
 
 #[cfg(target_arch = "wasm32")]
 use crate::log;
@@ -19,7 +19,7 @@ use crate::curv::{
     elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar},
 };
 
-use reqwest::{Body, Client};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
@@ -87,7 +87,7 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Vec<u8> {
     out.unwrap()
 }
 
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+// use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(ms: u32) {
