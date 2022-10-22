@@ -272,21 +272,24 @@ pub fn checksum(address: &str) -> String {
     let stripped = String::from(address.to_ascii_lowercase().trim_start_matches(PREFIX));
 
     let mut hasher = Keccak256::new();
-    hasher.update(stripped);
+    hasher.update(stripped.clone());
     let hash_vec = hasher.finalize().to_vec();
     let hash = hex::encode(hash_vec);
 
     let mut checksum = String::new();
-    checksum.push_str(PREFIX);
+
+    if address.len() != stripped.len() {
+        checksum.push_str(PREFIX);
+    }
 
     for (pos, char) in hash.chars().enumerate() {
         if pos > 39 {
             break;
         }
         if u32::from_str_radix(&char.to_string()[..], 16).unwrap() > 7 {
-            checksum.push_str(&address[pos + 2..pos + 3].to_ascii_uppercase());
+            checksum.push_str(&stripped[pos..pos + 1].to_ascii_uppercase());
         } else {
-            checksum.push_str(&address[pos + 2..pos + 3].to_ascii_lowercase());
+            checksum.push_str(&stripped[pos..pos + 1].to_ascii_lowercase());
         }
     }
 
