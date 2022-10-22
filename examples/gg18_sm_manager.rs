@@ -1,13 +1,13 @@
-#[cfg(not(target_arch = "wasm32"))]
-use rocket::fairing::{Fairing, Info, Kind};
+// #[cfg(not(target_arch = "wasm32"))]
+// use rocket::fairing::{Fairing, Info, Kind};
 #[cfg(not(target_arch = "wasm32"))]
 use rocket::serde::json::Json;
 #[cfg(not(target_arch = "wasm32"))]
 use rocket::{post, routes, State};
+// #[cfg(not(target_arch = "wasm32"))]
+// use rocket::{Request, Response};
 #[cfg(not(target_arch = "wasm32"))]
-use rocket::{Request, Response};
-#[cfg(not(target_arch = "wasm32"))]
-use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
+use rocket_cors::{AllowedOrigins, CorsOptions};
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
