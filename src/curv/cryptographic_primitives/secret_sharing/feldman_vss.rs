@@ -9,7 +9,7 @@
 use crate::curv::arithmetic::num_bigint::BigInt;
 use crate::curv::elliptic::curves::secp256_k1::{FE, GE};
 use crate::curv::elliptic::curves::traits::*;
-use crate::ErrorSS::{self, VerifyShareError};
+use crate::errors::TssError::{self, VerifyShareError};
 use num_traits::One;
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct ShamirSecretSharing {
@@ -177,13 +177,13 @@ impl VerifiableSS {
         tail.fold(head.clone(), |acc, x| acc.add(&x.get_element()))
     }
 
-    pub fn validate_share(&self, secret_share: &FE, index: usize) -> Result<(), ErrorSS> {
+    pub fn validate_share(&self, secret_share: &FE, index: usize) -> Result<(), TssError> {
         let G: GE = ECPoint::generator();
         let ss_point = G * secret_share;
         self.validate_share_public(&ss_point, index)
     }
 
-    pub fn validate_share_public(&self, ss_point: &GE, index: usize) -> Result<(), ErrorSS> {
+    pub fn validate_share_public(&self, ss_point: &GE, index: usize) -> Result<(), TssError> {
         let comm_to_point = self.get_point_commitment(index);
         if *ss_point == comm_to_point {
             Ok(())

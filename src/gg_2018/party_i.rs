@@ -16,11 +16,11 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
+use crate::errors::TssError::{self, InvalidCom, InvalidKey, InvalidSS, InvalidSig};
 use crate::paillier::zkproofs::NICorrectKeyProof;
 use crate::paillier::KeyGeneration;
 use crate::paillier::Paillier;
 use crate::paillier::{DecryptionKey, EncryptionKey};
-use crate::Error::{self, InvalidCom, InvalidKey, InvalidSS, InvalidSig};
 
 use crate::curv::arithmetic::traits::*;
 
@@ -196,7 +196,7 @@ impl Keys {
         params: &Parameters,
         decom_vec: &Vec<KeyGenDecommitMessage1>,
         bc1_vec: &Vec<KeyGenBroadcastMessage1>,
-    ) -> Result<(VerifiableSS, Vec<FE>, usize), Error> {
+    ) -> Result<(VerifiableSS, Vec<FE>, usize), TssError> {
         // test length:
         assert_eq!(decom_vec.len(), params.share_count);
         assert_eq!(bc1_vec.len(), params.share_count);
@@ -226,7 +226,7 @@ impl Keys {
         secret_shares_vec: &Vec<FE>,
         vss_scheme_vec: &Vec<VerifiableSS>,
         index: &usize,
-    ) -> Result<(SharedKeys, DLogProof), Error> {
+    ) -> Result<(SharedKeys, DLogProof), TssError> {
         assert_eq!(y_vec.len(), params.share_count);
         assert_eq!(secret_shares_vec.len(), params.share_count);
         assert_eq!(vss_scheme_vec.len(), params.share_count);
@@ -286,7 +286,7 @@ impl Keys {
         params: &Parameters,
         dlog_proofs_vec: &Vec<DLogProof>,
         y_vec: &Vec<GE>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), TssError> {
         assert_eq!(y_vec.len(), params.share_count);
         assert_eq!(dlog_proofs_vec.len(), params.share_count);
         let xi_dlog_verify = (0..y_vec.len())
@@ -416,7 +416,7 @@ impl SignKeys {
         // blind_vec: &Vec<BigInt>,
         //  g_gamma_i_vec: &Vec<GE>,
         bc1_vec: &Vec<SignBroadcastPhase1>,
-    ) -> Result<GE, Error> {
+    ) -> Result<GE, TssError> {
         let test_b_vec_and_com = (0..b_proof_vec.len())
             .map(|i| {
                 b_proof_vec[i].pk.get_element() == phase1_decommit_vec[i].g_gamma_i.get_element()
@@ -518,7 +518,7 @@ impl LocalSignature {
         dlog_proofs_rho: &[DLogProof],
         v_i: &GE,
         R: &GE,
-    ) -> Result<(Phase5Com2, Phase5DDecom2), Error> {
+    ) -> Result<(Phase5Com2, Phase5DDecom2), TssError> {
         assert_eq!(decom_vec.len(), com_vec.len());
 
         let g: GE = ECPoint::generator();
@@ -596,7 +596,7 @@ impl LocalSignature {
         decom_vec2: &Vec<Phase5DDecom2>,
         com_vec2: &Vec<Phase5Com2>,
         decom_vec1: &Vec<Phase5ADecom1>,
-    ) -> Result<FE, Error> {
+    ) -> Result<FE, TssError> {
         assert_eq!(decom_vec2.len(), decom_vec1.len());
         assert_eq!(decom_vec2.len(), com_vec2.len());
 
@@ -641,7 +641,7 @@ impl LocalSignature {
             false => Err(InvalidCom),
         }
     }
-    pub fn output_signature(&self, s_vec: &Vec<FE>) -> Result<Signature, Error> {
+    pub fn output_signature(&self, s_vec: &Vec<FE>) -> Result<Signature, TssError> {
         let mut s = s_vec.iter().fold(self.s_i.clone(), |acc, x| acc + x);
         let r: FE = ECScalar::from(&self.R.x_coor().unwrap().mod_floor(&FE::q()));
 
@@ -654,7 +654,7 @@ impl LocalSignature {
         let ry: BigInt = self
             .R
             .y_coor()
-            .ok_or(Error::InvalidSig)?
+            .ok_or(TssError::InvalidSig)?
             .mod_floor(&FE::q());
         let is_ry_odd = ry.test_bit(0);
         let mut recid = if is_ry_odd { 1 } else { 0 };
@@ -674,7 +674,7 @@ impl LocalSignature {
     }
 }
 
-pub fn verify(sig: &Signature, y: &GE, message: &BigInt) -> Result<(), Error> {
+pub fn verify(sig: &Signature, y: &GE, message: &BigInt) -> Result<(), TssError> {
     let b = sig.s.invert();
     let a: FE = ECScalar::from(message);
     let u1 = a * &b;
