@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::*;
 
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
+use crate::errors::TssError;
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
 use crate::log;
@@ -77,8 +78,15 @@ pub async fn gg18_keygen_client_new_context(
     t: usize,
     n: usize,
     delay: u32,
-) -> String {
+) -> Result<String, TssError> {
+    // Example:
+    return Err(TssError::UnknownError {
+        msg: "Just a test".to_string(),
+        file: file!().to_string(),
+        line: line!(),
+    });
     let client = new_client_with_headers();
+    crate::console_log!("client!");
     let params = Parameters {
         threshold: t,
         share_count: n,
@@ -106,7 +114,7 @@ pub async fn gg18_keygen_client_new_context(
         shared_keys: None,
         vss_scheme_vec: None,
     })
-    .unwrap()
+    .map_err(|e| TssError::ContextError)
 }
 
 #[wasm_bindgen]
@@ -404,10 +412,10 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> String {
     keygen_json
 }
 
-pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup, ()> {
+pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup, TssError> {
     let key = "signup-keygen".to_string();
-    let res_body = postb(client, addr, "signupkeygen", key).await.unwrap();
-    serde_json::from_str(&res_body).unwrap()
+    let res_body = postb(client, addr, "signupkeygen", key).await?;
+    serde_json::from_str(&res_body).map_err(|e| TssError::ContextError)
 }
 
 pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup, ()> {

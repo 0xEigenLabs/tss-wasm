@@ -3,6 +3,7 @@
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 // use crate::gg_2018::party_i::Signature;
 
+use crate::errors::TssError;
 #[cfg(target_arch = "wasm32")]
 use crate::log;
 
@@ -105,7 +106,7 @@ pub async fn sleep(ms: u32) {
     std::thread::sleep(core::time::Duration::from_millis(ms as u64));
 }
 
-pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Option<String>
+pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Result<String, TssError>
 where
     T: serde::ser::Serialize,
 {
@@ -120,10 +121,10 @@ where
             .await;
 
         if let Ok(res) = res {
-            return Some(res.text().await.unwrap());
+            return Ok(res.text().await.map_err(|e| TssError::ContextError)?);
         }
     }
-    None
+    Err(TssError::ContextError)
 }
 
 pub async fn broadcast(

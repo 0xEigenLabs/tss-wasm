@@ -49,6 +49,7 @@ generic-array = "0.14"
 js-sys = "0.3.59"
 tiny-keccak = { version = "2.0.1", features = ["keccak"] }
 log = "0.4.17"
+thiserror = "1.0"
 
 [dependencies.web-sys]
 version = "0.3.4"

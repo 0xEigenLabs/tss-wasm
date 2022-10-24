@@ -15,6 +15,7 @@ extern crate reqwest;
 extern crate sha2;
 
 pub mod curv;
+
 pub mod gg_2018;
 pub mod paillier;
 
@@ -22,6 +23,7 @@ pub mod paillier;
 pub mod common;
 
 pub mod api;
+pub mod errors;
 
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
