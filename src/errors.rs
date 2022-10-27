@@ -15,6 +15,10 @@ pub enum TssError {
         file: String,
         line: u32,
     },
+    #[error("json serialization error")]
+    SerdeError(#[from] serde_json::Error),
+    #[error("reqwest builder error")]
+    RequestError(#[from] reqwest::Error),
 }
 
 #[cfg(target_arch = "wasm32")]
