@@ -24,6 +24,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
+use crate::errors::Result;
+
 pub type Key = String;
 
 #[allow(dead_code)]
@@ -59,14 +61,13 @@ pub struct Params {
 }
 
 #[allow(dead_code)]
-pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> Result<AEAD, TssError> {
+pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> Result<AEAD> {
     let aes_key = aes_gcm::Key::from_slice(key);
     let cipher = Aes256Gcm::new(aes_key);
 
     let mut nonce = [0u8; 12];
     let mut rng = OsRng::new().map_err(|_e| TssError::UnknownError {
         msg: ("aes_encrypt").to_string(),
-        file: ("common.rs").to_string(),
         line: (line!()),
     })?;
     rng.fill_bytes(&mut nonce);
@@ -76,7 +77,6 @@ pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> Result<AEAD, TssError> {
         .encrypt(nonce, plaintext)
         .map_err(|_e| TssError::UnknownError {
             msg: ("encryption failure!").to_string(),
-            file: ("common.rs").to_string(),
             line: (line!()),
         })?;
     // .expect("encryption failure!");
@@ -88,7 +88,7 @@ pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> Result<AEAD, TssError> {
 }
 
 #[allow(dead_code)]
-pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Result<Vec<u8>, TssError> {
+pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Result<Vec<u8>> {
     let aes_key = aes_gcm::Key::from_slice(key);
     let nonce = Nonce::from_slice(&aead_pack.tag);
     let gcm = Aes256Gcm::new(aes_key);
@@ -97,7 +97,6 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Result<Vec<u8>, TssError> {
         .decrypt(nonce, aead_pack.ciphertext.as_slice())
         .map_err(|_e| TssError::UnknownError {
             msg: ("aes_decrypt").to_string(),
-            file: ("common.rs").to_string(),
             line: (line!()),
         });
     out
@@ -121,7 +120,7 @@ pub async fn sleep(ms: u32) {
     std::thread::sleep(core::time::Duration::from_millis(ms as u64));
 }
 
-pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Result<String, TssError>
+pub async fn postb<T>(client: &Client, addr: &str, path: &str, body: T) -> Result<String>
 where
     T: serde::ser::Serialize,
 {
@@ -135,16 +134,11 @@ where
             .send()
             .await;
         if let Ok(res) = res {
-            return Ok(res.text().await.map_err(|_e| TssError::UnknownError {
-                msg: ("postb").to_string(),
-                file: ("common.rs").to_string(),
-                line: (line!()),
-            })?);
+            return Ok(res.text().await?);
         }
     }
     Err(TssError::UnknownError {
         msg: ("postb").to_string(),
-        file: ("common.rs").to_string(),
         line: (line!()),
     })
 }
@@ -156,16 +150,16 @@ pub async fn broadcast(
     round: &str,
     data: String,
     sender_uuid: String,
-) -> Result<(), TssError> {
+) -> Result<()> {
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
     let res_body = postb(client, addr, "set", entry).await?;
     let _u = serde_json::from_str::<()>(&res_body).map_err(|_e| TssError::UnknownError {
         msg: ("broadcast").to_string(),
-        file: ("common.rs").to_string(),
         line: (line!()),
     });
     Ok(())
+    // Ok(serde_json)
 }
 
 pub async fn sendp2p(
@@ -176,7 +170,7 @@ pub async fn sendp2p(
     round: &str,
     data: String,
     sender_uuid: String,
-) -> Result<(), TssError> {
+) -> Result<()> {
     let key = format!("{}-{}-{}-{}", party_from, party_to, round, sender_uuid);
 
     let entry = Entry { key, value: data };
@@ -184,41 +178,10 @@ pub async fn sendp2p(
     let res_body = postb(client, addr, "set", entry).await?;
     let _u = serde_json::from_str::<()>(&res_body).map_err(|_e| TssError::UnknownError {
         msg: ("sendp2p").to_string(),
-        file: ("common.rs").to_string(),
         line: (line!()),
     });
     Ok(())
 }
-
-// pub async fn poll_for_broadcasts(
-//     client: &Client,
-//     addr: &str,
-//     party_num: u16,
-//     n: u16,
-//     round: &str,
-//     sender_uuid: String,
-//     delay: u32,
-// ) -> Result<Vec<String>,TssError> {
-//     let mut ans_vec = Vec::new();
-//     for i in 1..=n {
-//         if i != party_num {
-//             let key = format!("{}-{}-{}", i, round, sender_uuid);
-//             let index = Index { key };
-//             loop {
-//                 sleep(delay).await;
-//                 // add delay to allow the server to process request:
-//                 let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
-//                 let answer: Result<Entry, TssError> = serde_json::from_str(&res_body).map_err(|_e|TssError::UnknownError { msg: ("poll_for_broadcasts").to_string(), file: ("common.rs").to_string(), line: (line!()) });
-//                 if let Ok(answer) = answer {
-//                     ans_vec.push(answer.value);
-//                     println!("[{:?}] party {:?} => party {:?}", round, i, party_num);
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-//     return Ok(ans_vec)
-// }
 
 pub async fn poll_for_broadcasts(
     client: &Client,
@@ -228,7 +191,7 @@ pub async fn poll_for_broadcasts(
     round: &str,
     sender_uuid: String,
     delay: u32,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut ans_vec = Vec::new();
     for i in 1..=n {
         if i != party_num {
@@ -237,8 +200,8 @@ pub async fn poll_for_broadcasts(
             loop {
                 sleep(delay).await;
                 // add delay to allow the server to process request:
-                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
-                let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
+                let res_body = postb(client, addr, "get", index.clone()).await?;
+                let answer: std::result::Result<Entry, ()> = serde_json::from_str(&res_body)?;
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
                     println!("[{:?}] party {:?} => party {:?}", round, i, party_num);
@@ -247,7 +210,7 @@ pub async fn poll_for_broadcasts(
             }
         }
     }
-    ans_vec
+    return Ok(ans_vec);
 }
 
 pub async fn poll_for_p2p(
@@ -258,7 +221,7 @@ pub async fn poll_for_p2p(
     delay: u32,
     round: &str,
     sender_uuid: String,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut ans_vec = Vec::new();
     for i in 1..=n {
         if i != party_num {
@@ -267,8 +230,8 @@ pub async fn poll_for_p2p(
             loop {
                 // add delay to allow the server to process request:
                 sleep(delay).await;
-                let res_body = postb(client, addr, "get", index.clone()).await.unwrap();
-                let answer: Result<Entry, ()> = serde_json::from_str(&res_body).unwrap();
+                let res_body = postb(client, addr, "get", index.clone()).await?;
+                let answer: std::result::Result<Entry, ()> = serde_json::from_str(&res_body)?;
                 if let Ok(answer) = answer {
                     ans_vec.push(answer.value);
                     println!("[{:?}] party {:?} => party {:?}", round, i, party_num);
@@ -277,10 +240,10 @@ pub async fn poll_for_p2p(
             }
         }
     }
-    ans_vec
+    Ok(ans_vec)
 }
 
-pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> Result<bool, TssError> {
+pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> Result<bool> {
     let r_vec = BigInt::to_vec(&r.to_big_int());
     let s_vec = BigInt::to_vec(&s.to_big_int());
 
@@ -296,20 +259,11 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> Result<boo
 
     let msg_vec = BigInt::to_vec(msg);
 
-    let message =
-        secp256k1::Message::parse(&msg_vec.try_into().map_err(|_e| TssError::UnknownError {
-            msg: ("check_sig").to_string(),
-            file: ("common.rs").to_string(),
-            line: (line!()),
-        })?);
+    let message = secp256k1::Message::parse(&msg_vec.try_into().unwrap());
 
     let pubkey_a = pk.get_element().serialize();
 
-    let pubkey = secp256k1::PublicKey::parse(&pubkey_a).map_err(|_e| TssError::UnknownError {
-        msg: ("check_sig").to_string(),
-        file: ("common.rs").to_string(),
-        line: (line!()),
-    })?;
+    let pubkey = secp256k1::PublicKey::parse(&pubkey_a)?;
 
     #[cfg(target_arch = "wasm32")]
     crate::console_log!("pubkey: {:?}", pubkey);
@@ -321,7 +275,7 @@ pub fn check_sig(r: &Scalar, s: &Scalar, msg: &BigInt, pk: &Point) -> Result<boo
     Ok(secp256k1::verify(&message, &signature, &pubkey))
 }
 
-pub fn public_key_address(public_key: &secp256k1::PublicKey) -> Result<[u8; 20], TssError> {
+pub fn public_key_address(public_key: &secp256k1::PublicKey) -> Result<[u8; 20]> {
     let public_key = public_key.serialize();
     debug_assert_eq!(public_key[0], 0x04);
     let hash = keccak256(&public_key[1..]);
@@ -329,7 +283,6 @@ pub fn public_key_address(public_key: &secp256k1::PublicKey) -> Result<[u8; 20],
         .try_into()
         .map_err(|_e| TssError::UnknownError {
             msg: ("public_key_address").to_string(),
-            file: ("common.rs").to_string(),
             line: (line!()),
         })
 }
@@ -345,7 +298,7 @@ pub fn keccak256(bytes: &[u8]) -> [u8; 32] {
 
 const PREFIX: &str = "0x";
 
-pub fn checksum(address: &str) -> Result<String, TssError> {
+pub fn checksum(address: &str) -> Result<String> {
     let stripped = String::from(address.to_ascii_lowercase().trim_start_matches(PREFIX));
 
     let mut hasher = Keccak256::new();
@@ -365,7 +318,6 @@ pub fn checksum(address: &str) -> Result<String, TssError> {
         }
         if u32::from_str_radix(&char.to_string()[..], 16).map_err(|_e| TssError::UnknownError {
             msg: ("checkSum").to_string(),
-            file: ("common.rs").to_string(),
             line: (line!()),
         })? > 7
         {

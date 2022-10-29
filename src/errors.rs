@@ -9,16 +9,14 @@ pub type Result<T> = std::result::Result<T, TssError>;
 pub enum TssError {
     #[error("Context create error")]
     ContextError,
-    #[error("Unknown error: {msg}, {file}, {line}")]
-    UnknownError {
-        msg: String,
-        file: String,
-        line: u32,
-    },
+    #[error("Unknown error: {msg}, {line}")]
+    UnknownError { msg: String, line: u32 },
     #[error("json serialization error")]
     SerdeError(#[from] serde_json::Error),
     #[error("reqwest builder error")]
     RequestError(#[from] reqwest::Error),
+    #[error("secp256k1 builder error")]
+    Secp256k1Error(#[from] secp256k1::Error),
 }
 
 #[cfg(target_arch = "wasm32")]

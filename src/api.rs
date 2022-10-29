@@ -1,27 +1,12 @@
 #![cfg(target_arch = "wasm32")]
 #![allow(non_snake_case)]
-use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
-
-//use crate::log;
-
-use web_sys::{Request, RequestInit, RequestMode, Response};
-
-use crate::errors::TssError;
-use crate::gg_2018::mta::*;
-use crate::gg_2018::party_i::*;
-use crate::log;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
-use reqwest::Client;
-
 use crate::common::{
     aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
-    sendp2p, Entry, Params, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
     arithmetic::num_bigint::BigInt,
-    arithmetic::traits::ConvertFrom,
     arithmetic::traits::Converter,
     cryptographic_primitives::{
         proofs::sigma_correct_homomorphic_elgamal_enc::HomoELGamalProof,
@@ -29,11 +14,18 @@ use crate::curv::{
     },
     elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar},
 };
-use crate::paillier::traits::EncryptWithChosenRandomness;
-
+use crate::gg_2018::mta::*;
+use crate::gg_2018::party_i::*;
+use crate::log;
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
+// use crate::paillier::traits::EncryptWithChosenRandomness;
 use crate::paillier::EncryptionKey;
-use sha2::Sha256;
-use std::{file, line};
+// use sha2::Sha256;
+// use std::{fs, time};
+use crate::errors::Result;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GG18KeygenClientContext {
@@ -55,7 +47,7 @@ pub struct GG18KeygenClientContext {
     vss_scheme_vec: Option<Vec<VerifiableSS>>,
 }
 
-fn new_client_with_headers() -> Result<Client, TssError> {
+fn new_client_with_headers() -> Result<Client> {
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
@@ -77,15 +69,17 @@ pub async fn gg18_keygen_client_new_context(
     t: usize,
     n: usize,
     delay: u32,
-) -> Result<String, TssError> {
+) -> Result<String> {
     let client = new_client_with_headers()?;
     let params = Parameters {
         threshold: t,
         share_count: n,
     };
-    let (party_num_int, uuid) = match signup_keygen(&client, &addr).await.unwrap() {
+
+    let (party_num_int, uuid) = match signup_keygen(&client, &addr).await? {
         PartySignup { number, uuid } => (number, uuid),
     };
+
     Ok(serde_json::to_string(&GG18KeygenClientContext {
         addr,
         params,
@@ -107,11 +101,12 @@ pub async fn gg18_keygen_client_new_context(
 }
 
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
     let client = reqwest::Client::new();
     let party_keys = Keys::create(context.party_num_int as usize);
     let (bc_i, decom_i) = party_keys.phase1_broadcast_phase3_proof_of_correct_key();
+
     broadcast(
         &client,
         &context.addr,
@@ -121,6 +116,7 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
+
     let round1_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -130,36 +126,37 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut bc1_vec = round1_ans_vec
         .iter()
         .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(m).unwrap())
         .collect::<Vec<_>>();
+
     bc1_vec.insert(context.party_num_int as usize - 1, bc_i);
+
     context.bc1_vec = Some(bc1_vec);
     context.party_keys = Some(party_keys);
     context.decom_i = Some(decom_i);
+
     Ok(serde_json::to_string(&context)?)
 }
 
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
     let client = reqwest::Client::new();
+    // send ephemeral public keys and check commitments correctness
     broadcast(
         &client,
         &context.addr,
         context.party_num_int,
         "round2",
-        serde_json::to_string(context.decom_i.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round2").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.decom_i.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
+
     let round2_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -169,57 +166,24 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
+
     let mut j = 0;
     let mut point_vec: Vec<Point> = Vec::new();
     let mut decom_vec: Vec<KeyGenDecommitMessage1> = Vec::new();
     let mut enc_keys: Vec<Vec<u8>> = Vec::new();
     for i in 1..=context.params.share_count as u16 {
         if i == context.party_num_int {
-            point_vec.push(
-                context
-                    .decom_i
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .y_i
-                    .clone(),
-            );
-            decom_vec.push(
-                context
-                    .decom_i
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .clone(),
-            );
+            point_vec.push(context.decom_i.as_ref().unwrap().y_i.clone());
+            decom_vec.push(context.decom_i.as_ref().unwrap().clone());
         } else {
             let decom_j: KeyGenDecommitMessage1 = serde_json::from_str(&round2_ans_vec[j])?;
             point_vec.push(decom_j.y_i.clone());
             decom_vec.push(decom_j.clone());
             let key_bn: BigInt = (decom_j.y_i.clone()
-                * context
-                    .party_keys
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .u_i
-                    .clone())
+                * context.party_keys.as_ref().unwrap().u_i.clone())
             .x_coor()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_keygen_client_round2").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?;
+            .unwrap();
             let key_bytes = BigInt::to_vec(&key_bn);
             let mut template: Vec<u8> = vec![0u8; AES_KEY_BYTES_LEN - key_bytes.len()];
             template.extend_from_slice(&key_bytes[..]);
@@ -234,23 +198,11 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
     let (vss_scheme, secret_shares, _index) = context
         .party_keys
         .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round2").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .phase1_verify_com_phase3_verify_correct_key_phase2_distribute(
             &context.params,
             &decom_vec,
-            &(context
-                .bc1_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_keygen_client_round2").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .to_vec()),
+            &(context.bc1_vec.as_ref().unwrap()),
         )
         .expect("invalid key");
 
@@ -264,25 +216,16 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
 }
 
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
     let client = reqwest::Client::new();
     let mut j = 0;
     for (k, i) in (1..=context.params.share_count as u16).enumerate() {
         if i != context.party_num_int {
             // prepare encrypted ss for party i:
-            let key_i = &context.enc_keys.as_ref().ok_or(TssError::ContextError)?[j];
-            let plaintext = BigInt::to_vec(
-                &context
-                    .secret_shares
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round3").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[k]
-                    .to_big_int(),
-            );
+            let key_i = &context.enc_keys.as_ref().unwrap()[j];
+            let plaintext =
+                BigInt::to_vec(&context.secret_shares.as_ref().unwrap()[k].to_big_int());
             let aead_pack_i = aes_encrypt(key_i, &plaintext)?;
             assert!(sendp2p(
                 &client,
@@ -308,30 +251,16 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
         "round3",
         context.uuid.clone(),
     )
-    .await;
+    .await?;
 
     let mut j = 0;
     let mut party_shares: Vec<Scalar> = Vec::new();
     for i in 1..=context.params.share_count as u16 {
         if i == context.party_num_int {
-            party_shares.push(
-                context
-                    .secret_shares
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round3").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[(i - 1) as usize]
-                    .clone(),
-            );
+            party_shares.push(context.secret_shares.as_ref().unwrap()[(i - 1) as usize].clone());
         } else {
-            let aead_pack: AEAD = serde_json::from_str(&round3_ans_vec[j])?;
-            let key_i = &context.enc_keys.as_ref().ok_or(TssError::UnknownError {
-                msg: ("gg18_keygen_client_round3").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?[j];
+            let aead_pack: AEAD = serde_json::from_str(&round3_ans_vec[j]).unwrap();
+            let key_i = &context.enc_keys.as_ref().unwrap()[j];
             let out = aes_decrypt(key_i, aead_pack)?;
             let out_bn = BigInt::from_bytes_be(&out[..]);
             let out_fe = ECScalar::from(&out_bn);
@@ -347,7 +276,7 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
 }
 
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
     let client = reqwest::Client::new();
     broadcast(
@@ -355,11 +284,7 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<St
         &context.addr,
         context.party_num_int,
         "round4",
-        serde_json::to_string(&context.vss_scheme.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.vss_scheme.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -372,56 +297,28 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
+
     let mut j = 0;
     let mut vss_scheme_vec: Vec<VerifiableSS> = Vec::new();
     for i in 1..=context.params.share_count as u16 {
         if i == context.party_num_int {
-            vss_scheme_vec.push(
-                context
-                    .vss_scheme
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round4").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .clone(),
-            );
+            vss_scheme_vec.push(context.vss_scheme.as_ref().unwrap().clone());
         } else {
-            let vss_scheme_j: VerifiableSS = serde_json::from_str(&round4_ans_vec[j])?;
+            let vss_scheme_j: VerifiableSS = serde_json::from_str(&round4_ans_vec[j]).unwrap();
             vss_scheme_vec.push(vss_scheme_j);
             j += 1;
         }
     }
+
     let (shared_keys, dlog_proof) = context
         .party_keys
         .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .phase2_verify_vss_construct_keypair_phase3_pok_dlog(
             &context.params,
-            &context
-                .point_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_keygen_client_round4").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .to_vec(),
-            &context
-                .party_shares
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_keygen_client_round4").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .to_vec(),
+            &context.point_vec.as_ref().unwrap(),
+            &context.party_shares.as_ref().unwrap(),
             &vss_scheme_vec,
             &(context.party_num_int.clone() as usize), // FIXME
         )
@@ -435,7 +332,7 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<St
 }
 
 #[wasm_bindgen]
-pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<String> {
     let context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
     let client = reqwest::Client::new();
     broadcast(
@@ -443,16 +340,7 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         &context.addr,
         context.party_num_int,
         "round5",
-        serde_json::to_string(&context.dlog_proof.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)
-        .map_err(|_e| TssError::UnknownError {
-            msg: ("gg18_keygen_client_round5").to_string(),
-            file: ("api.rs").to_string(),
-            line: (line!()),
-        })?,
+        serde_json::to_string(&context.dlog_proof.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -465,23 +353,13 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut j = 0;
     let mut dlog_proof_vec: Vec<DLogProof> = Vec::new();
     for i in 1..=context.params.share_count as u16 {
         if i == context.party_num_int {
-            dlog_proof_vec.push(
-                context
-                    .dlog_proof
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_keygen_client_round5").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .clone(),
-            );
+            dlog_proof_vec.push(context.dlog_proof.as_ref().unwrap().clone());
         } else {
             let dlog_proof_j: DLogProof = serde_json::from_str(&round5_ans_vec[j])?;
             dlog_proof_vec.push(dlog_proof_j);
@@ -491,15 +369,7 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
     Keys::verify_dlog_proofs(
         &context.params,
         &dlog_proof_vec,
-        &context
-            .point_vec
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_keygen_client_round5").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .to_vec(),
+        &context.point_vec.as_ref().unwrap(),
     )
     .expect("bad dlog proof");
 
@@ -509,51 +379,29 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         .collect::<Vec<EncryptionKey>>();
 
     let keygen_json = serde_json::to_string(&(
-        context.party_keys.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
-        context.shared_keys.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.party_keys.as_ref().unwrap(),
+        context.shared_keys.as_ref().unwrap(),
         context.party_num_int,
-        context
-            .vss_scheme_vec
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_keygen_client_round5").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?,
+        context.vss_scheme_vec.as_ref().unwrap(),
         paillier_key_vec,
-        context.y_sum.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_keygen_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.y_sum.as_ref().unwrap(),
     ))?;
 
     Ok(keygen_json)
 }
 
-// pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup, TssError> {
-//     let key = "signup-keygen".to_string();
-//     let res_body = postb(client, addr, "signupkeygen", key).await?;
-//     Ok(serde_json::from_str::<PartySignup>(&res_body)?)
-// }
-pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup, ()> {
+pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup> {
     let key = "signup-keygen".to_string();
-    let res_body = postb(client, addr, "signupkeygen", key).await.unwrap();
-    serde_json::from_str(&res_body).unwrap()
+    let res_body = postb(client, addr, "signupkeygen", key).await?;
+    let u: std::result::Result<PartySignup, ()> = serde_json::from_str(&res_body)?;
+    Ok(u.unwrap())
 }
 
-pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup, ()> {
+pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup> {
     let key = "signup-sign".to_string();
-    let res_body = postb(client, addr, "signupsign", key).await.unwrap();
-    serde_json::from_str(&res_body).unwrap()
+    let res_body = postb(client, addr, "signupsign", key).await?;
+    let u: std::result::Result<PartySignup, ()> = serde_json::from_str(&res_body)?;
+    Ok(u.unwrap())
 }
 
 #[wasm_bindgen]
@@ -606,13 +454,14 @@ pub async fn gg18_sign_client_new_context(
     n: usize,
     key_store: String,
     message_str: String,
-) -> Result<String, TssError> {
+) -> Result<String> {
     let message = match hex::decode(message_str.clone()) {
         Ok(x) => x,
         Err(_e) => message_str.as_bytes().to_vec(),
     };
     // let message = &message[..];
     let client = new_client_with_headers()?;
+
     let (party_keys, shared_keys, party_id, vss_scheme_vec, paillier_key_vector, y_sum): (
         Keys,
         SharedKeys,
@@ -621,10 +470,12 @@ pub async fn gg18_sign_client_new_context(
         Vec<EncryptionKey>,
         Point,
     ) = serde_json::from_str(&key_store)?;
+
     //signup:
-    let (party_num_int, uuid) = match signup_sign(&client, &addr).await.unwrap() {
+    let (party_num_int, uuid) = match signup_sign(&client, &addr).await? {
         PartySignup { number, uuid } => (number, uuid),
     };
+
     Ok(serde_json::to_string(&GG18SignClientContext {
         addr,
         party_keys,
@@ -667,7 +518,7 @@ pub async fn gg18_sign_client_new_context(
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     // round 0: collect signers IDs
@@ -689,7 +540,8 @@ pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
+
     let mut j = 0;
     let mut signers_vec: Vec<usize> = Vec::new();
     for i in 1..=context.threshould + 1 {
@@ -713,6 +565,7 @@ pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<Stri
     );
 
     let xi_com_vec = Keys::get_commitments_to_xi(&context.vss_scheme_vec);
+
     context.sign_keys = Some(sign_keys);
     context.signers_vec = Some(signers_vec);
     context.xi_com_vec = Some(xi_com_vec);
@@ -721,28 +574,12 @@ pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
-    let (com, decommit) = context
-        .sign_keys
-        .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round1").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
-        .phase1_broadcast();
+    let (com, decommit) = context.sign_keys.as_ref().unwrap().phase1_broadcast();
     let (m_a_k, _) = MessageA::a(
-        &context
-            .sign_keys
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round1").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .k_i,
+        &context.sign_keys.as_ref().unwrap().k_i,
         &context.party_keys.ek,
         &[],
     );
@@ -764,7 +601,7 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     context.com = Some(com);
     context.decommit = Some(decommit);
@@ -774,7 +611,7 @@ pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     let mut j = 0;
@@ -783,20 +620,12 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
 
     for i in 1..context.threshould + 2 {
         if i == context.party_num_int {
-            bc1_vec.push(context.com.as_ref().ok_or(TssError::ContextError)?.clone());
+            bc1_vec.push(context.com.as_ref().unwrap().clone());
         //   m_a_vec.push(m_a_k.clone());
         } else {
             //     if signers_vec.contains(&(i as usize)) {
-            let (bc1_j, m_a_party_j): (SignBroadcastPhase1, MessageA) = serde_json::from_str(
-                &context
-                    .round1_ans_vec
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[j],
-            )?;
+            let (bc1_j, m_a_party_j): (SignBroadcastPhase1, MessageA) =
+                serde_json::from_str(&context.round1_ans_vec.as_ref().unwrap()[j])?;
             bc1_vec.push(bc1_j);
             m_a_vec.push(m_a_party_j);
 
@@ -804,18 +633,7 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
             //       }
         }
     }
-    assert_eq!(
-        context
-            .signers_vec
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round2").to_string(),
-                file: file!().to_string(),
-                line: line!()
-            })?
-            .len(),
-        bc1_vec.len()
-    );
+    assert_eq!(context.signers_vec.as_ref().unwrap().len(), bc1_vec.len());
 
     //////////////////////////////////////////////////////////////////////////////
     let mut m_b_gamma_send_vec: Vec<MessageB> = Vec::new();
@@ -826,55 +644,21 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
     for i in 1..context.threshould + 2 {
         if i != context.party_num_int {
             let (m_b_gamma, beta_gamma, _, _) = MessageB::b(
-                &context
-                    .sign_keys
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .gamma_i,
-                &context.paillier_key_vector[usize::from(
-                    context.signers_vec.as_ref().ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[usize::from(i - 1)],
-                )],
+                &context.sign_keys.as_ref().unwrap().gamma_i,
+                &context.paillier_key_vector
+                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
                 m_a_vec[j].clone(),
                 &[],
             )
-            .map_err(|_e| TssError::UnknownError {
-                msg: ("gg18_sign_client_round2").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?;
+            .unwrap();
             let (m_b_w, beta_wi, _, _) = MessageB::b(
-                &context
-                    .sign_keys
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .w_i,
-                &context.paillier_key_vector[usize::from(
-                    context.signers_vec.as_ref().ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round2").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[usize::from(i - 1)],
-                )],
+                &context.sign_keys.as_ref().unwrap().w_i,
+                &context.paillier_key_vector
+                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
                 m_a_vec[j].clone(),
                 &[],
             )
-            .map_err(|_e| TssError::UnknownError {
-                msg: ("gg18_sign_client_round2").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?;
+            .unwrap();
             m_b_gamma_send_vec.push(m_b_gamma);
             m_b_w_send_vec.push(m_b_w);
             beta_vec.push(beta_gamma);
@@ -910,7 +694,7 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
         "round2",
         context.uuid.clone(),
     )
-    .await;
+    .await?;
 
     context.round2_ans_vec = Some(round2_ans_vec);
     context.beta_vec = Some(beta_vec);
@@ -921,35 +705,16 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<String, TssError> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context).map_err(|_e| {
-        TssError::UnknownError {
-            msg: ("gg18_sign_client_round3").to_string(),
-            file: ("api.rs").to_string(),
-            line: (line!()),
-        }
-    })?;
+pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<String> {
+    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     let mut m_b_gamma_rec_vec: Vec<MessageB> = Vec::new();
     let mut m_b_w_rec_vec: Vec<MessageB> = Vec::new();
 
     for i in 0..context.threshould {
         //  if signers_vec.contains(&(i as usize)) {
-        let (m_b_gamma_i, m_b_w_i): (MessageB, MessageB) = serde_json::from_str(
-            &context
-                .round2_ans_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round3").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?[i as usize],
-        )
-        .map_err(|_e| TssError::UnknownError {
-            msg: ("gg18_sign_client_round3").to_string(),
-            file: ("api.rs").to_string(),
-            line: (line!()),
-        })?;
+        let (m_b_gamma_i, m_b_w_i): (MessageB, MessageB) =
+            serde_json::from_str(&context.round2_ans_vec.as_ref().unwrap()[i as usize])?;
         m_b_gamma_rec_vec.push(m_b_gamma_i);
         m_b_w_rec_vec.push(m_b_w_i);
         //     }
@@ -966,67 +731,25 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<Stri
             let alpha_ij_gamma = m_b
                 .verify_proofs_get_alpha(
                     &context.party_keys.dk,
-                    &context
-                        .sign_keys
-                        .as_ref()
-                        .ok_or(TssError::UnknownError {
-                            msg: ("gg18_sign_client_round3").to_string(),
-                            file: file!().to_string(),
-                            line: line!(),
-                        })?
-                        .k_i,
+                    &context.sign_keys.as_ref().unwrap().k_i,
                 )
                 .expect("wrong dlog or m_b");
             let m_b = m_b_w_rec_vec[j].clone();
             let alpha_ij_wi = m_b
                 .verify_proofs_get_alpha(
                     &context.party_keys.dk,
-                    &context
-                        .sign_keys
-                        .as_ref()
-                        .ok_or(TssError::UnknownError {
-                            msg: ("gg18_sign_client_round3").to_string(),
-                            file: file!().to_string(),
-                            line: line!(),
-                        })?
-                        .k_i,
+                    &context.sign_keys.as_ref().unwrap().k_i,
                 )
                 .expect("wrong dlog or m_b");
             alpha_vec.push(alpha_ij_gamma.0);
             miu_vec.push(alpha_ij_wi.0);
             let g_w_i = Keys::update_commitments_to_xi(
-                &context.xi_com_vec.as_ref().ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round3").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?[usize::from(
-                    context.signers_vec.as_ref().ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round3").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[usize::from(i - 1)],
-                )],
-                &context.vss_scheme_vec[usize::from(
-                    context.signers_vec.as_ref().ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round3").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?[usize::from(i - 1)],
-                )],
-                context.signers_vec.as_ref().ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round3").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?[usize::from(i - 1)],
-                &context
-                    .signers_vec
-                    .as_ref()
-                    .ok_or(TssError::UnknownError {
-                        msg: ("gg18_sign_client_round3").to_string(),
-                        file: file!().to_string(),
-                        line: line!(),
-                    })?
-                    .to_vec(),
+                &context.xi_com_vec.as_ref().unwrap()
+                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+                &context.vss_scheme_vec
+                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+                context.signers_vec.as_ref().unwrap()[usize::from(i - 1)],
+                &context.signers_vec.as_ref().unwrap(),
             );
             assert_eq!(m_b.b_proof.pk, g_w_i);
             j += 1;
@@ -1036,43 +759,13 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<Stri
     let delta_i = context
         .sign_keys
         .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round3").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
-        .phase2_delta_i(
-            &alpha_vec,
-            &context
-                .beta_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round3").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .to_vec(),
-        );
+        .unwrap()
+        .phase2_delta_i(&alpha_vec, &context.beta_vec.as_ref().unwrap());
     let sigma = context
         .sign_keys
         .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round3").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
-        .phase2_sigma_i(
-            &miu_vec,
-            &context
-                .ni_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round3").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .to_vec(),
-        );
+        .unwrap()
+        .phase2_sigma_i(&miu_vec, &context.ni_vec.as_ref().unwrap());
 
     broadcast(
         &client,
@@ -1092,7 +785,7 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
     let mut delta_vec: Vec<Scalar> = Vec::new();
     format_vec_from_reads(
         &round3_ans_vec,
@@ -1110,7 +803,7 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     // decommit to gamma_i
@@ -1119,11 +812,7 @@ pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<Stri
         &context.addr,
         context.party_num_int,
         "round4",
-        serde_json::to_string(&context.decommit.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.decommit.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -1136,98 +825,45 @@ pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut decommit_vec: Vec<SignDecommitPhase1> = Vec::new();
     format_vec_from_reads(
         &round4_ans_vec,
         context.party_num_int as usize,
-        context.decommit.clone().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.decommit.clone().unwrap(),
         &mut decommit_vec,
     );
 
     let decomm_i = decommit_vec.remove(usize::from(context.party_num_int - 1));
-    let _ = &context
+    &context
         .bc1_vec
         .as_mut()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .remove(usize::from(context.party_num_int - 1));
-    let b_proof_vec = (0..context
-        .m_b_gamma_rec_vec
-        .as_ref()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
-        .len())
+    let b_proof_vec = (0..context.m_b_gamma_rec_vec.as_ref().unwrap().len())
         .map(|i| &context.m_b_gamma_rec_vec.as_ref().unwrap()[i].b_proof)
         .collect::<Vec<&DLogProof>>();
 
     let R = SignKeys::phase4(
-        &context
-            .delta_inv
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round4").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .clone(),
+        &context.delta_inv.as_ref().unwrap(),
         &b_proof_vec,
         decommit_vec,
-        &context
-            .bc1_vec
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round4").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .clone(),
+        &context.bc1_vec.as_ref().unwrap(),
     )
     .expect("bad gamma_i decommit");
 
     // adding local g_gamma_i
-    let R = R + decomm_i.g_gamma_i
-        * context.delta_inv.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round4").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?;
+    let R = R + decomm_i.g_gamma_i * context.delta_inv.as_ref().unwrap();
 
     // we assume the message is already hashed (by the signer).
     let message = &context.message[..];
     let message_bn = BigInt::from_bytes_be(message);
     let local_sig = LocalSignature::phase5_local_sig(
-        &context
-            .sign_keys
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round4").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .k_i,
+        &context.sign_keys.as_ref().unwrap().k_i,
         &message_bn,
         &R,
-        &context
-            .sigma
-            .as_ref()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round4").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .clone(),
+        &context.sigma.as_ref().unwrap(),
         &context.y_sum,
     );
 
@@ -1245,7 +881,7 @@ pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //phase (5A)  broadcast commit
@@ -1254,11 +890,7 @@ pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<Stri
         &context.addr,
         context.party_num_int,
         "round5",
-        serde_json::to_string(&context.phase5_com.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.phase5_com.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -1271,17 +903,13 @@ pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut commit5a_vec: Vec<Phase5Com1> = Vec::new();
     format_vec_from_reads(
         &round5_ans_vec,
         context.party_num_int as usize,
-        context.phase5_com.clone().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round5").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.phase5_com.clone().unwrap(),
         &mut commit5a_vec,
     );
 
@@ -1291,7 +919,7 @@ pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //phase (5B)  broadcast decommit and (5B) ZK proof
@@ -1301,30 +929,9 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
         context.party_num_int,
         "round6",
         serde_json::to_string(&(
-            context
-                .phase_5a_decom
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
-            context
-                .helgamal_proof
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
-            context
-                .dlog_proof_rho
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
+            context.phase_5a_decom.clone().unwrap(),
+            context.helgamal_proof.clone().unwrap(),
+            context.dlog_proof_rho.clone().unwrap(),
         ))?,
         context.uuid.clone(),
     )
@@ -1338,7 +945,7 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut decommit5a_and_elgamal_and_dlog_vec: Vec<(Phase5ADecom1, HomoELGamalProof, DLogProof)> =
         Vec::new();
@@ -1346,30 +953,9 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
         &round6_ans_vec,
         context.party_num_int as usize,
         (
-            context
-                .phase_5a_decom
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
-            context
-                .helgamal_proof
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
-            context
-                .dlog_proof_rho
-                .clone()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?,
+            context.phase_5a_decom.clone().unwrap(),
+            context.helgamal_proof.clone().unwrap(),
+            context.dlog_proof_rho.clone().unwrap(),
         ),
         &mut decommit5a_and_elgamal_and_dlog_vec,
     );
@@ -1379,11 +965,7 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
     context
         .commit5a_vec
         .as_mut()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round6").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .remove(usize::from(context.party_num_int - 1));
     let phase_5a_decomm_vec = (0..context.threshould)
         .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].0.clone())
@@ -1397,42 +979,14 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
     let (phase5_com2, phase_5d_decom2) = context
         .local_sig
         .clone()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round6").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .phase5c(
             &phase_5a_decomm_vec,
-            &context
-                .commit5a_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .clone(),
+            &context.commit5a_vec.as_ref().unwrap(),
             &phase_5a_elgamal_vec,
             &phase_5a_dlog_vec,
-            &context
-                .phase_5a_decom
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .V_i,
-            &context
-                .r
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round6").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .clone(),
+            &context.phase_5a_decom.as_ref().unwrap().V_i,
+            &context.r.as_ref().unwrap(),
         )
         .expect("error phase5");
 
@@ -1445,7 +999,7 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
@@ -1454,11 +1008,7 @@ pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<Stri
         &context.addr,
         context.party_num_int,
         "round7",
-        serde_json::to_string(&context.phase5_com2.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round7").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.phase5_com2.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -1471,17 +1021,13 @@ pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut commit5c_vec: Vec<Phase5Com2> = Vec::new();
     format_vec_from_reads(
         &round7_ans_vec,
         context.party_num_int as usize,
-        context.phase5_com2.clone().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round7").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.phase5_com2.clone().unwrap(),
         &mut commit5c_vec,
     );
 
@@ -1491,7 +1037,7 @@ pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //phase (5B)  broadcast decommit and (5B) ZK proof
@@ -1500,13 +1046,7 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<Stri
         &context.addr,
         context.party_num_int,
         "round8",
-        serde_json::to_string(&context.phase_5d_decom2.as_ref().ok_or(
-            TssError::UnknownError {
-                msg: ("gg18_sign_client_round8").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            },
-        )?)?,
+        serde_json::to_string(&context.phase_5d_decom2.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -1519,20 +1059,13 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut decommit5d_vec: Vec<Phase5DDecom2> = Vec::new();
     format_vec_from_reads(
         &round8_ans_vec,
         context.party_num_int as usize,
-        context
-            .phase_5d_decom2
-            .clone()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round8").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?,
+        context.phase_5d_decom2.clone().unwrap(),
         &mut decommit5d_vec,
     );
 
@@ -1549,22 +1082,10 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<Stri
     let s_i = context
         .local_sig
         .clone()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round8").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .phase5d(
             &decommit5d_vec,
-            &context
-                .commit5c_vec
-                .as_ref()
-                .ok_or(TssError::UnknownError {
-                    msg: ("gg18_sign_client_round8").to_string(),
-                    file: file!().to_string(),
-                    line: line!(),
-                })?
-                .clone(),
+            &context.commit5c_vec.as_ref().unwrap(),
             &phase_5a_decomm_vec_includes_i,
         )
         .expect("bad com 5d");
@@ -1575,7 +1096,7 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<Stri
 }
 
 #[wasm_bindgen]
-pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<String, TssError> {
+pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<String> {
     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
@@ -1584,11 +1105,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
         &context.addr,
         context.party_num_int,
         "round9",
-        serde_json::to_string(&context.s_i.as_ref().ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round9").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?)?,
+        serde_json::to_string(&context.s_i.as_ref().unwrap())?,
         context.uuid.clone(),
     )
     .await?;
@@ -1601,17 +1118,13 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
         context.uuid.clone(),
         delay,
     )
-    .await;
+    .await?;
 
     let mut s_i_vec: Vec<Scalar> = Vec::new();
     format_vec_from_reads(
         &round9_ans_vec,
         context.party_num_int as usize,
-        context.s_i.ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round9").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?,
+        context.s_i.unwrap(),
         &mut s_i_vec,
     );
 
@@ -1619,11 +1132,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
     let sig = context
         .local_sig
         .clone()
-        .ok_or(TssError::UnknownError {
-            msg: ("gg18_sign_client_round9").to_string(),
-            file: file!().to_string(),
-            line: line!(),
-        })?
+        .unwrap()
         .output_signature(&s_i_vec)
         .expect("verification failed");
 
@@ -1644,23 +1153,10 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
 
     // let message_bn = BigInt::from_bytes_be(&message[..]);
 
-    // check_sig(&sig.r,
-    //     &sig.s,
-    //     &context.local_sig.clone().unwrap().m,
-    //     &context.y_sum.clone()).is_ok()
-
     if !check_sig(
         &sig.r,
         &sig.s,
-        &context
-            .local_sig
-            .clone()
-            .ok_or(TssError::UnknownError {
-                msg: ("gg18_sign_client_round9").to_string(),
-                file: file!().to_string(),
-                line: line!(),
-            })?
-            .m,
+        &context.local_sig.clone().unwrap().m,
         &context.y_sum.clone(),
     )
     .is_ok()
@@ -1677,15 +1173,16 @@ fn format_vec_from_reads<'a, T: serde::Deserialize<'a> + Clone>(
     party_num: usize,
     value_i: T,
     new_vec: &'a mut Vec<T>,
-) {
+) -> Result<()> {
     let mut j = 0;
     for i in 1..ans_vec.len() + 2 {
         if i == party_num {
             new_vec.push(value_i.clone());
         } else {
-            let value_j: T = serde_json::from_str(&ans_vec[j]).unwrap();
+            let value_j: T = serde_json::from_str(&ans_vec[j])?;
             new_vec.push(value_j);
             j += 1;
         }
     }
+    Ok(())
 }
