@@ -782,7 +782,7 @@ pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         delta_i,
         &mut delta_vec,
-    );
+    )?;
     let delta_inv = SignKeys::phase3_reconstruct_delta(&delta_vec);
 
     context.m_b_gamma_rec_vec = Some(m_b_gamma_rec_vec);
@@ -823,10 +823,10 @@ pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         context.decommit.clone().unwrap(),
         &mut decommit_vec,
-    );
+    )?;
 
     let decomm_i = decommit_vec.remove(usize::from(context.party_num_int - 1));
-    &context
+    let _ = &context
         .bc1_vec
         .as_mut()
         .unwrap()
@@ -900,7 +900,7 @@ pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         context.phase5_com.clone().unwrap(),
         &mut commit5a_vec,
-    );
+    )?;
 
     context.commit5a_vec = Some(commit5a_vec);
 
@@ -947,7 +947,7 @@ pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<Stri
             context.dlog_proof_rho.clone().unwrap(),
         ),
         &mut decommit5a_and_elgamal_and_dlog_vec,
-    );
+    )?;
     let decommit5a_and_elgamal_and_dlog_vec_includes_i =
         decommit5a_and_elgamal_and_dlog_vec.clone();
     decommit5a_and_elgamal_and_dlog_vec.remove(usize::from(context.party_num_int - 1));
@@ -1013,7 +1013,7 @@ pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         context.phase5_com2.clone().unwrap(),
         &mut commit5c_vec,
-    );
+    )?;
 
     context.commit5c_vec = Some(commit5c_vec);
 
@@ -1051,7 +1051,7 @@ pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         context.phase_5d_decom2.clone().unwrap(),
         &mut decommit5d_vec,
-    );
+    )?;
 
     let phase_5a_decomm_vec_includes_i = (0..=context.threshould)
         .map(|i| {
@@ -1105,7 +1105,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
         context.party_num_int as usize,
         context.s_i.unwrap(),
         &mut s_i_vec,
-    );
+    )?;
 
     s_i_vec.remove(usize::from(context.party_num_int - 1));
     let sig = context
