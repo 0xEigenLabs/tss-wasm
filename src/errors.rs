@@ -15,9 +15,13 @@ pub enum TssError {
     SerdeError(#[from] serde_json::Error),
     #[error("reqwest builder error")]
     RequestError(#[from] reqwest::Error),
-    #[error("secp256k1 builder error")]
+    #[error("secp256k1 error")]
     Secp256k1Error(#[from] secp256k1::Error),
+    #[error("rand error")]
+    RandError(#[from] rand::Error),
 
+    #[error("ParseIntError error")]
+    ParseError(#[from] std::num::ParseIntError),
     #[error("InvalidKey")]
     InvalidKey,
     #[error("InvalidSS")]

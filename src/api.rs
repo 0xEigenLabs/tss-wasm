@@ -127,10 +127,8 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
 
     let mut bc1_vec: Vec<_> = round1_ans_vec
         .into_iter()
-        .map(|m| {
-            serde_json::from_str::<KeyGenBroadcastMessage1>(&m).map_err(|e| TssError::SerdeError(e))
-        })
-        .collect::<Result<Vec<KeyGenBroadcastMessage1>>>()?;
+        .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(&m))
+        .collect::<std::result::Result<Vec<KeyGenBroadcastMessage1>, serde_json::Error>>()?;
 
     bc1_vec.insert(context.party_num_int as usize - 1, bc_i);
 
