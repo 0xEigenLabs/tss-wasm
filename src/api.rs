@@ -14,7 +14,7 @@ use crate::curv::{
     },
     elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar},
 };
-use crate::errors::Result;
+use crate::errors::{Result, TssError};
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
 use crate::log;
@@ -125,10 +125,10 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
     )
     .await?;
 
-    let mut bc1_vec = round1_ans_vec
-        .iter()
-        .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(m).unwrap())
-        .collect::<Vec<_>>();
+    let mut bc1_vec:Vec<_> = round1_ans_vec
+        .into_iter()
+        .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(&m).map_err(|e|TssError::SerdeError(e)))
+        .collect::<Result<Vec<KeyGenBroadcastMessage1>>>()?;
 
     bc1_vec.insert(context.party_num_int as usize - 1, bc_i);
 
