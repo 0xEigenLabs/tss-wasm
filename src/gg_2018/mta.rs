@@ -21,8 +21,8 @@ use crate::curv::elliptic::curves::traits::*;
 use crate::paillier::{Add, Decrypt, Mul};
 use crate::paillier::{DecryptionKey, EncryptionKey, Paillier, RawCiphertext, RawPlaintext};
 
+use crate::errors::TssError::{self, InvalidKey};
 use crate::gg_2018::party_i::PartyPrivate;
-use crate::Error::{self, InvalidKey};
 
 use crate::gg_2018::range_proofs::AliceProof;
 use crate::paillier::zkproofs::DLogStatement;
@@ -89,7 +89,7 @@ impl MessageB {
         alice_ek: &EncryptionKey,
         m_a: MessageA,
         dlog_statements: &[DLogStatement],
-    ) -> Result<(Self, Secp256k1Scalar, BigInt, BigInt), Error> {
+    ) -> Result<(Self, Secp256k1Scalar, BigInt, BigInt), TssError> {
         let beta_tag = BigInt::sample_below(&alice_ek.n);
         let randomness = BigInt::sample_below(&alice_ek.n);
         let (m_b, beta) = MessageB::b_with_predefined_randomness(
@@ -111,7 +111,7 @@ impl MessageB {
         randomness: &BigInt,
         beta_tag: &BigInt,
         dlog_statements: &[DLogStatement],
-    ) -> Result<(Self, Secp256k1Scalar), Error> {
+    ) -> Result<(Self, Secp256k1Scalar), TssError> {
         if m_a.range_proofs.len() != dlog_statements.len() {
             return Err(InvalidKey);
         }
@@ -157,7 +157,7 @@ impl MessageB {
         &self,
         dk: &DecryptionKey,
         a: &Secp256k1Scalar,
-    ) -> Result<(Secp256k1Scalar, BigInt), Error> {
+    ) -> Result<(Secp256k1Scalar, BigInt), TssError> {
         let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         let g: GE = ECPoint::generator();
         let alpha: FE = ECScalar::from(&alice_share.0);
@@ -178,7 +178,7 @@ impl MessageB {
         &self,
         private: &PartyPrivate,
         a: &FE,
-    ) -> Result<FE, Error> {
+    ) -> Result<FE, TssError> {
         let alice_share = private.decrypt(self.c.clone());
         let g: GE = ECPoint::generator();
         let alpha: FE = ECScalar::from(&alice_share.0);

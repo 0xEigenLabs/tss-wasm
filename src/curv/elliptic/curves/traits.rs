@@ -6,7 +6,7 @@
 */
 
 use crate::curv::arithmetic::num_bigint::BigInt;
-use crate::ErrorKey;
+use crate::errors::TssError;
 use generic_array::ArrayLength;
 use typenum::Unsigned;
 
@@ -40,7 +40,7 @@ where
     fn x_coor(&self) -> Option<BigInt>;
     fn y_coor(&self) -> Option<BigInt>;
     fn bytes_compressed_to_big_int(&self) -> BigInt;
-    fn from_bytes(bytes: &[u8]) -> Result<Self, ErrorKey>;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, TssError>;
     fn pk_to_key_slice(&self) -> Vec<u8>;
     fn scalar_mul(&self, fe: &SK) -> Self;
     fn add_point(&self, other: &PK) -> Self;

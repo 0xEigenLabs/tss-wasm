@@ -45,7 +45,7 @@ lazy_static::lazy_static! {
     static ref CURVE_ORDER_: BigInt = BigInt::from_bytes_be(&CURVE_ORDER);
 }
 
-use crate::ErrorKey;
+use crate::errors::TssError;
 pub type SK = SecretKey;
 pub type PK = PublicKey;
 
@@ -354,7 +354,7 @@ impl ECPoint<PK, SK> for Secp256k1Point {
         Some(from(&y_vec[..]))
     }
 
-    fn from_bytes(bytes: &[u8]) -> Result<Secp256k1Point, ErrorKey> {
+    fn from_bytes(bytes: &[u8]) -> Result<Secp256k1Point, TssError> {
         let bytes_vec = bytes.to_vec();
         let mut bytes_array_65 = [0u8; 65];
         let mut bytes_array_33 = [0u8; 33];
@@ -375,7 +375,7 @@ impl ECPoint<PK, SK> for Secp256k1Point {
                     purpose: "random",
                     ge: pk,
                 });
-                test.map_err(|_err| ErrorKey::InvalidPublicKey)
+                test.map_err(|_err| TssError::InvalidPublicKey)
             }
 
             0..=32 => {
@@ -395,7 +395,7 @@ impl ECPoint<PK, SK> for Secp256k1Point {
                     purpose: "random",
                     ge: pk,
                 });
-                test.map_err(|_err| ErrorKey::InvalidPublicKey)
+                test.map_err(|_err| TssError::InvalidPublicKey)
             }
             _ => {
                 let bytes_slice = &bytes_vec[0..64];
@@ -410,7 +410,7 @@ impl ECPoint<PK, SK> for Secp256k1Point {
                     purpose: "random",
                     ge: pk,
                 });
-                test.map_err(|_err| ErrorKey::InvalidPublicKey)
+                test.map_err(|_err| TssError::InvalidPublicKey)
             }
         }
     }
@@ -618,7 +618,7 @@ mod tests {
     use crate::curv::elliptic::curves::secp256_k1::{FE, GE};
     use crate::curv::elliptic::curves::traits::ECPoint;
     use crate::curv::elliptic::curves::traits::ECScalar;
-    use crate::ErrorKey;
+    use crate::errors::TssError;
     use serde_json;
 
     #[cfg(target_arch = "wasm32")]
@@ -722,7 +722,12 @@ mod tests {
         let hash = HSha256::create_hash(&vec![&g.bytes_compressed_to_big_int()]);
         let hash_vec = BigInt::to_vec(&hash);
         let result = Secp256k1Point::from_bytes(&hash_vec);
-        assert_eq!(result.unwrap_err(), ErrorKey::InvalidPublicKey)
+        match result.unwrap_err() {
+            TssError::InvalidPublicKey => {}
+            _ => {
+                panic!("result should be InvalidPublicKey")
+            }
+        }
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
