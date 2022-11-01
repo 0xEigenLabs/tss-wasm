@@ -125,9 +125,11 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
     )
     .await?;
 
-    let mut bc1_vec:Vec<_> = round1_ans_vec
+    let mut bc1_vec: Vec<_> = round1_ans_vec
         .into_iter()
-        .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(&m).map_err(|e|TssError::SerdeError(e)))
+        .map(|m| {
+            serde_json::from_str::<KeyGenBroadcastMessage1>(&m).map_err(|e| TssError::SerdeError(e))
+        })
         .collect::<Result<Vec<KeyGenBroadcastMessage1>>>()?;
 
     bc1_vec.insert(context.party_num_int as usize - 1, bc_i);
@@ -1131,17 +1133,12 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
 
     // let message_bn = BigInt::from_bytes_be(&message[..]);
 
-    if !check_sig(
+    check_sig(
         &sig.r,
         &sig.s,
         &context.local_sig.clone().unwrap().m,
         &context.y_sum.clone(),
-    )
-    .is_ok()
-    {
-        // TODO: Remove this panic when fix all unwrap()
-        panic!("check_sig failed");
-    }
+    )?;
 
     Ok(sign_json)
 }
