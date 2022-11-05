@@ -10,9 +10,9 @@ portable lightweight client application for threshold ECDSA (based on [GG18](htt
 
 ## Latest release
 
-web: @ieigen/tss-wasm@0.0.5
+web: @ieigen/tss-wasm@0.0.6
 
-nodejs: @ieigen/tss-wasm-node@0.0.5, node 18.0+ is required
+nodejs: @ieigen/tss-wasm-node@0.0.6, node 18.0+ is required
 
 # Test
 
