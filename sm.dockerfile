@@ -3,12 +3,6 @@ FROM rust:latest AS builder
 WORKDIR /tss-wasm
 COPY ./ .
 
-# RUN wget https://www.openssl.org/source/openssl-1.1.1o.tar.gz
-# RUN tar -zxvf openssl-1.1.1o.tar.gz
-# RUN cd openssl-1.1.1o \
-#     && ./config \
-#     && make \
-#     && make install
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl-dev libc6-dev 
 
