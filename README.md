@@ -49,7 +49,7 @@ Open `http://localhost:8080/` in browser, check out the output in `console`.
 # Compile SM server by Docker
 
 ```
-docker build -t ieigen:tss-sm-server -f sm.dockerfile .
+docker build -t ieigen:tss-sm-server --build-arg "BUILDARCH=$(uname -m)" -f sm.dockerfile .
 docker run -d -p 8000:8000 -v $PWD/params.json:/tss-wasm/params.json ieigen:tss-sm-server
 ```
 
