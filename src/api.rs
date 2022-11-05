@@ -223,7 +223,7 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
             let plaintext =
                 BigInt::to_vec(&context.secret_shares.as_ref().unwrap()[k].to_big_int());
             let aead_pack_i = aes_encrypt(key_i, &plaintext)?;
-            assert!(sendp2p(
+            sendp2p(
                 &client,
                 &context.addr,
                 context.party_num_int,
@@ -232,8 +232,7 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
                 serde_json::to_string(&aead_pack_i)?,
                 context.uuid.clone(),
             )
-            .await
-            .is_ok());
+            .await?;
             j += 1;
         }
     }
@@ -664,7 +663,7 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
     let mut j = 0;
     for i in 1..context.threshould + 2 {
         if i != context.party_num_int {
-            assert!(sendp2p(
+            sendp2p(
                 &client,
                 &context.addr,
                 context.party_num_int,
@@ -673,8 +672,7 @@ pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<Stri
                 serde_json::to_string(&(m_b_gamma_send_vec[j].clone(), m_b_w_send_vec[j].clone()))?,
                 context.uuid.clone(),
             )
-            .await
-            .is_ok());
+            .await?;
             j += 1;
         }
     }
@@ -1123,13 +1121,6 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
         sig.recid.to_string(),
     ])?;
     crate::console_log!("sign_json: {:?}", sign_json);
-
-    // let message = match hex::decode(&context.local_sig.unwrap().m) {
-    //     Ok(x) => x,
-    //     Err(_e) => context.message.to_vec(),
-    // };
-
-    // let message_bn = BigInt::from_bytes_be(&message[..]);
 
     check_sig(
         &sig.r,
