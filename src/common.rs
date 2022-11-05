@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
-// use crate::gg_2018::party_i::Signature;
-
 use crate::errors::TssError;
 #[cfg(target_arch = "wasm32")]
 use crate::log;
@@ -73,8 +71,6 @@ pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> Result<AEAD> {
             msg: ("encryption failure!").to_string(),
             line: (line!()),
         })?;
-    // .expect("encryption failure!");
-
     Ok(AEAD {
         ciphertext: ciphertext,
         tag: nonce.to_vec(),
@@ -95,8 +91,6 @@ pub fn aes_decrypt(key: &[u8], aead_pack: AEAD) -> Result<Vec<u8>> {
         });
     out
 }
-
-// use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
 #[cfg(target_arch = "wasm32")]
 pub async fn sleep(ms: u32) {
@@ -148,9 +142,8 @@ pub async fn broadcast(
     let key = format!("{}-{}-{}", party_num, round, sender_uuid);
     let entry = Entry { key, value: data };
     let res_body = postb(client, addr, "set", entry).await?;
-    let _u = serde_json::from_str::<()>(&res_body)?;
-    Ok(())
-    // Ok(serde_json)
+    let u: std::result::Result<(), ()> = serde_json::from_str(&res_body)?;
+    Ok(u.unwrap())
 }
 
 pub async fn sendp2p(
@@ -167,8 +160,8 @@ pub async fn sendp2p(
     let entry = Entry { key, value: data };
 
     let res_body = postb(client, addr, "set", entry).await?;
-    let _u = serde_json::from_str::<()>(&res_body)?;
-    Ok(())
+    let u: std::result::Result<(), ()> = serde_json::from_str(&res_body)?;
+    Ok(u.unwrap())
 }
 
 pub async fn poll_for_broadcasts(
