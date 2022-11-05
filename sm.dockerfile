@@ -18,10 +18,11 @@ FROM debian:buster-slim
 WORKDIR /tss-wasm
 
 # Copy our build
+ARG BUILDARCH
 COPY --from=builder /tss-wasm/target/release/examples/gg18_sm_manager ./
 COPY --from=builder /tss-wasm/Rocket.toml ./
-COPY --from=builder /usr/lib/aarch64-linux-gnu/libssl.so.1.1 /usr/lib/aarch64-linux-gnu/
-COPY --from=builder /usr/lib/aarch64-linux-gnu/libcrypto.so.1.1 /usr/lib/aarch64-linux-gnu/
+COPY --from=builder /usr/lib/$BUILDARCH-linux-gnu/libssl.so.1.1 /usr/lib/$BUILDARCH-linux-gnu/
+COPY --from=builder /usr/lib/$BUILDARCH-linux-gnu/libcrypto.so.1.1 /usr/lib/$BUILDARCH-linux-gnu/
 
 EXPOSE 8000:8000
 CMD ["/tss-wasm/gg18_sm_manager"]
