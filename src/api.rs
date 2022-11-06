@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 use crate::common::{
     aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
-    sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    public_key_address, sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
@@ -42,6 +42,7 @@ pub struct GG18KeygenClientContext {
     dlog_proof: Option<DLogProof>,
     shared_keys: Option<SharedKeys>,
     vss_scheme_vec: Option<Vec<VerifiableSS>>,
+    public_key_address: Option<String>,
 }
 
 fn new_client_with_headers() -> Result<Client> {
@@ -94,6 +95,7 @@ pub async fn gg18_keygen_client_new_context(
         dlog_proof: None,
         shared_keys: None,
         vss_scheme_vec: None,
+        public_key_address: None,
     })?)
 }
 
@@ -202,7 +204,10 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
             &(context.bc1_vec.as_ref().unwrap()),
         )?;
 
-    context.y_sum = Some(y_sum);
+    context.y_sum = Some(y_sum.clone());
+    let pubkey_a = y_sum.get_element().serialize();
+    let pubkey = secp256k1::PublicKey::parse(&pubkey_a)?;
+    context.public_key_address = Some(hex::encode(public_key_address(&pubkey)));
     context.vss_scheme = Some(vss_scheme);
     context.secret_shares = Some(secret_shares);
     context.enc_keys = Some(enc_keys);
