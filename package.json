@@ -22,7 +22,8 @@
     "webpack": "^4.29.4",
     "webpack-cli": "^3.1.1",
     "webpack-dev-server": "^3.1.0",
-    "ethers": "^5.7.1"
+    "ethers": "^5.7.1",
+    "axios": "^0.23.0"
   },
   "author": "EigenLabs",
   "main": "index.js",
