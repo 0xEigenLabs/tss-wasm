@@ -21,7 +21,7 @@ async function keygen(m, delay) {
   keygen_url = `${eigen_service}/tss/keygen`;
   res = await axios.post(
     keygen_url,
-    querystring.stringify({ user_id: user_id, name: key_name }),
+    querystring.stringify({ user_id: user_id, name: key_name, t: 1, n: 2 }),
     {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -131,6 +131,8 @@ async function sign(m, key_store, delay, public_key_address) {
       digest: digest.slice(2),
       user_address: public_key_address,
       user_id: user_id,
+      t: 1,
+      n: 2,
     }),
     {
       headers: {
