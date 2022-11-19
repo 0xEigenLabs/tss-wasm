@@ -29,7 +29,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   let context = await m.gg18_keygen_client_new_context(addr, t, n, delay);
 
@@ -47,7 +47,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_keygen_client_round1(context, delay);
   console.log("keygen round1:");
@@ -65,7 +65,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_keygen_client_round2(context, delay);
   console.log("keygen round2: ");
@@ -83,7 +83,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_keygen_client_round3(context, delay);
   console.log("keygen round3: ");
@@ -101,7 +101,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_keygen_client_round4(context, delay);
   console.log("keygen round4: ");
@@ -119,7 +119,7 @@ async function keygen(m, delay) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   keygen_json = await m.gg18_keygen_client_round5(context, delay);
   console.timeEnd(5);
@@ -151,7 +151,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   let context = await m.gg18_sign_client_new_context(
     addr,
@@ -173,7 +173,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round0(context, delay);
   console.log("sign round0: ");
@@ -190,7 +190,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round1(context, delay);
   console.log("sign round1: ");
@@ -208,7 +208,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round2(context, delay);
   console.log("sign round2: ");
@@ -226,7 +226,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round3(context, delay);
   console.log("sign round3: ");
@@ -244,7 +244,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round4(context, delay);
   console.log("sign round4: ");
@@ -262,7 +262,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round5(context, delay);
   console.log("sign round5: ");
@@ -280,7 +280,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round6(context, delay);
   console.log("sign round6: ");
@@ -298,7 +298,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round7(context, delay);
   console.log("sign round7: ");
@@ -316,7 +316,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   context = await m.gg18_sign_client_round8(context, delay);
   console.log("sign round8: ");
@@ -334,7 +334,7 @@ async function sign(m, key_store, delay, public_key_address) {
     }
   );
   console.log(res.data);
-  await delay_ms(1000);
+  // await delay_ms(50);
 
   sign_json = await m.gg18_sign_client_round9(context, delay);
   console.timeEnd(9);
