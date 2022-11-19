@@ -21,7 +21,7 @@ async function keygen(m, delay) {
   keygen_url = `${eigen_service}/tss/keygen`;
   res = await axios.post(
     keygen_url,
-    querystring.stringify({ user_id: user_id, name: key_name }),
+    querystring.stringify({ user_id: user_id, name: key_name, t: 1, n: 2 }),
     {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -142,6 +142,8 @@ async function sign(m, key_store, delay, public_key_address) {
       digest: digest.slice(2),
       user_address: public_key_address,
       user_id: user_id,
+      t: 1,
+      n: 2,
     }),
     {
       headers: {
@@ -195,8 +197,9 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round1(context, delay);
-  console.timeEnd(1);
+
   console.log("sign round1: ");
+  console.timeEnd(1);
 
   round = 2;
   console.time(2);
@@ -213,6 +216,7 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round2(context, delay);
+
   console.timeEnd(2);
   console.log("sign round2: ");
 
@@ -231,8 +235,9 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round3(context, delay);
-  console.timeEnd(3);
+
   console.log("sign round3: ");
+  console.timeEnd(3);
 
   round = 4;
   console.time(4);
@@ -249,8 +254,9 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round4(context, delay);
-  console.timeEnd(4);
+ 
   console.log("sign round4: ");
+  console.timeEnd(4);
 
   round = 5;
   console.time(5);
@@ -267,8 +273,9 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round5(context, delay);
-  console.timeEnd(5);
+
   console.log("sign round5: ");
+  console.timeEnd(5);
 
   round = 6;
   console.time(6);
@@ -285,9 +292,10 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round6(context, delay);
-  console.timeEnd(6);
-  console.log("sign round6: ");
 
+  console.log("sign round6: ");
+  console.timeEnd(6);
+ 
   round = 7;
   console.time(7);
   res = await axios.post(
@@ -303,8 +311,10 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round7(context, delay);
+
   console.timeEnd(7);
   console.log("sign round7: ");
+
 
   round = 8;
   console.time(8);
@@ -321,6 +331,7 @@ async function sign(m, key_store, delay, public_key_address) {
   await delay_ms(1000);
 
   context = await m.gg18_sign_client_round8(context, delay);
+
   console.timeEnd(8);
   console.log("sign round8: ");
 
