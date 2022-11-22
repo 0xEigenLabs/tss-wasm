@@ -1082,59 +1082,66 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round9",
-        serde_json::to_string(&context.s_i.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round9_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round9",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+    if context.party_id != 1 {
+        broadcast(
+            &client,
+            &context.addr,
+            context.party_num_int,
+            "round9",
+            serde_json::to_string(&context.s_i.as_ref().unwrap())?,
+            context.uuid.clone(),
+        )
+        .await?;
+    } else {
+        let round9_ans_vec = poll_for_broadcasts(
+            &client,
+            &context.addr,
+            context.party_num_int,
+            context.threshould + 1,
+            "round9",
+            context.uuid.clone(),
+            delay,
+        )
+        .await?;
 
-    let mut s_i_vec: Vec<Scalar> = Vec::new();
-    format_vec_from_reads(
-        &round9_ans_vec,
-        context.party_num_int as usize,
-        context.s_i.unwrap(),
-        &mut s_i_vec,
-    )?;
+        let mut s_i_vec: Vec<Scalar> = Vec::new();
+        format_vec_from_reads(
+            &round9_ans_vec,
+            context.party_num_int as usize,
+            context.s_i.unwrap(),
+            &mut s_i_vec,
+        )?;
 
-    s_i_vec.remove(usize::from(context.party_num_int - 1));
-    let sig = context
-        .local_sig
-        .clone()
-        .unwrap()
-        .output_signature(&s_i_vec)?;
+        s_i_vec.remove(usize::from(context.party_num_int - 1));
+        let sig = context
+            .local_sig
+            .clone()
+            .unwrap()
+            .output_signature(&s_i_vec)?;
 
-    let sign_json = serde_json::to_string(&vec![
-        //"r",
-        sig.r.to_big_int().to_hex(),
-        //"s",
-        sig.s.to_big_int().to_hex(),
-        //"v"
-        sig.recid.to_string(),
-    ])?;
-    crate::console_log!("sign_json: {:?}", sign_json);
+        let sign_json = serde_json::to_string(&vec![
+            //"r",
+            sig.r.to_big_int().to_hex(),
+            //"s",
+            sig.s.to_big_int().to_hex(),
+            //"v"
+            sig.recid.to_string(),
+        ])?;
+        crate::console_log!("sign_json: {:?}", sign_json);
 
-    check_sig(
-        &sig.r,
-        &sig.s,
-        &context.local_sig.clone().unwrap().m,
-        &context.y_sum.clone(),
-    )?;
+        check_sig(
+            &sig.r,
+            &sig.s,
+            &context.local_sig.clone().unwrap().m,
+            &context.y_sum.clone(),
+        )?;
 
-    Ok(sign_json)
+        return Ok(sign_json);
+    }
+
+    Ok(serde_json::to_string(
+        "part of the signed work has been completed",
+    )?)
 }
 
 fn format_vec_from_reads<'a, T: serde::Deserialize<'a> + Clone>(
