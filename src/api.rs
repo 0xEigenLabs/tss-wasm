@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 use crate::common::{
     aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
-    public_key_address, sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    public_key_address, sendp2p, PartySignup, PartySignup1, AEAD, AES_KEY_BYTES_LEN,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
@@ -30,6 +30,7 @@ pub struct GG18KeygenClientContext {
     params: Parameters,
     party_num_int: u16,
     uuid: String,
+    is_client: u16,
     bc1_vec: Option<Vec<KeyGenBroadcastMessage1>>,
     decom_i: Option<KeyGenDecommitMessage1>,
     party_keys: Option<Keys>,
@@ -74,8 +75,12 @@ pub async fn gg18_keygen_client_new_context(
         share_count: n,
     };
 
-    let (party_num_int, uuid) = match signup_keygen(&client, &addr).await? {
-        PartySignup { number, uuid } => (number, uuid),
+    let (party_num_int, uuid, is_client) = match signup_keygen(&client, &addr).await? {
+        PartySignup {
+            number,
+            uuid,
+            is_client,
+        } => (number, uuid, is_client),
     };
 
     Ok(serde_json::to_string(&GG18KeygenClientContext {
@@ -83,6 +88,7 @@ pub async fn gg18_keygen_client_new_context(
         params,
         party_num_int,
         uuid,
+        is_client,
         bc1_vec: None,
         decom_i: None,
         party_keys: None,
@@ -380,6 +386,7 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         context.party_keys.as_ref().unwrap(),
         context.shared_keys.as_ref().unwrap(),
         context.party_num_int,
+        context.is_client,
         context.vss_scheme_vec.as_ref().unwrap(),
         paillier_key_vec,
         context.y_sum.as_ref().unwrap(),
@@ -395,10 +402,10 @@ pub async fn signup_keygen(client: &Client, addr: &str) -> Result<PartySignup> {
     Ok(u.unwrap())
 }
 
-pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup> {
+pub async fn signup_sign(client: &Client, addr: &str) -> Result<PartySignup1> {
     let key = "signup-sign".to_string();
     let res_body = postb(client, addr, "signupsign", key).await?;
-    let u: std::result::Result<PartySignup, ()> = serde_json::from_str(&res_body)?;
+    let u: std::result::Result<PartySignup1, ()> = serde_json::from_str(&res_body)?;
     Ok(u.unwrap())
 }
 
@@ -409,6 +416,7 @@ pub struct GG18SignClientContext {
     party_keys: Keys,
     shared_keys: SharedKeys,
     party_id: u16,
+    is_client: u16,
     vss_scheme_vec: Vec<VerifiableSS>,
     paillier_key_vector: Vec<EncryptionKey>,
     y_sum: Point,
@@ -460,9 +468,10 @@ pub async fn gg18_sign_client_new_context(
     // let message = &message[..];
     let client = new_client_with_headers()?;
 
-    let (party_keys, shared_keys, party_id, vss_scheme_vec, paillier_key_vector, y_sum): (
+    let (party_keys, shared_keys, party_id, is_client, vss_scheme_vec, paillier_key_vector, y_sum): (
         Keys,
         SharedKeys,
+        u16,
         u16,
         Vec<VerifiableSS>,
         Vec<EncryptionKey>,
@@ -471,7 +480,7 @@ pub async fn gg18_sign_client_new_context(
 
     //signup:
     let (party_num_int, uuid) = match signup_sign(&client, &addr).await? {
-        PartySignup { number, uuid } => (number, uuid),
+        PartySignup1 { number, uuid } => (number, uuid),
     };
 
     Ok(serde_json::to_string(&GG18SignClientContext {
@@ -479,6 +488,7 @@ pub async fn gg18_sign_client_new_context(
         party_keys,
         shared_keys,
         party_id,
+        is_client,
         vss_scheme_vec,
         paillier_key_vector,
         y_sum,
@@ -1082,7 +1092,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
-    if context.party_id != 1 {
+    if context.is_client == 0 {
         broadcast(
             &client,
             &context.addr,
