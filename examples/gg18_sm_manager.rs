@@ -98,7 +98,7 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
                 is_owner: 0,
             }
         } else {
-            let num = rand::thread_rng().gen_range(0, parties);
+            let num = rand::thread_rng().gen_range(1, parties);
             hm.insert(key_partyid, num.to_string());
             PartySignup {
                 number: num,

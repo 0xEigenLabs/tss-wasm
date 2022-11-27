@@ -1096,17 +1096,7 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
-    if context.is_owner == 0 {
-        broadcast(
-            &client,
-            &context.addr,
-            context.party_num_int,
-            "round9",
-            serde_json::to_string(&context.s_i.as_ref().unwrap())?,
-            context.uuid.clone(),
-        )
-        .await?;
-    } else {
+    if context.is_owner == 1 {
         let round9_ans_vec = poll_for_broadcasts(
             &client,
             &context.addr,
@@ -1151,6 +1141,16 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
         )?;
 
         return Ok(sign_json);
+    } else {
+        broadcast(
+            &client,
+            &context.addr,
+            context.party_num_int,
+            "round9",
+            serde_json::to_string(&context.s_i.as_ref().unwrap())?,
+            context.uuid.clone(),
+        )
+        .await?;
     }
 
     Ok(serde_json::to_string(
