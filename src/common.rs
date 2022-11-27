@@ -36,13 +36,7 @@ pub struct AEAD {
 pub struct PartySignup {
     pub number: u16,
     pub uuid: String,
-    pub is_client: u16,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct PartySignup1 {
-    pub number: u16,
-    pub uuid: String,
+    pub is_owner: u16,
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]

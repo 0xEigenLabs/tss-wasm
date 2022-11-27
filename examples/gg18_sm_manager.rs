@@ -17,7 +17,7 @@ use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::RwLock;
 #[cfg(not(target_arch = "wasm32"))]
-use tss_wasm::common::{Entry, Index, Key, Params, PartySignup, PartySignup1};
+use tss_wasm::common::{Entry, Index, Key, Params, PartySignup};
 #[cfg(not(target_arch = "wasm32"))]
 use uuid::Uuid;
 
@@ -79,7 +79,7 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
             PartySignup {
                 number: num,
                 uuid: client_signup.uuid,
-                is_client: 1,
+                is_owner: 1,
             }
         } else if sum_partyid < sum_parties {
             let mut vector_parties: Vec<u32> = vec![];
@@ -95,7 +95,7 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
             PartySignup {
                 number: difference[0] as u16,
                 uuid: client_signup.uuid,
-                is_client: 0,
+                is_owner: 0,
             }
         } else {
             let num = rand::thread_rng().gen_range(0, parties);
@@ -103,7 +103,7 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
             PartySignup {
                 number: num,
                 uuid: Uuid::new_v4().to_string(),
-                is_client: 1,
+                is_owner: 1,
             }
         }
     };
@@ -114,7 +114,7 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
 
 #[cfg(not(target_arch = "wasm32"))]
 #[post("/signupsign", format = "json")]
-fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<PartySignup1, ()>> {
+fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<PartySignup, ()>> {
     //read parameters:
     let data = fs::read_to_string("params.json")
         .expect("Unable to read params, make sure config file is present in the same folder ");
@@ -125,16 +125,18 @@ fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Part
     let mut hm = db_mtx.write().unwrap();
     let party_signup = {
         let value = hm.get(&key).unwrap();
-        let client_signup: PartySignup1 = serde_json::from_str(value).unwrap();
+        let client_signup: PartySignup = serde_json::from_str(value).unwrap();
         if client_signup.number < threshold + 1 {
-            PartySignup1 {
+            PartySignup {
                 number: client_signup.number + 1,
                 uuid: client_signup.uuid,
+                is_owner: 0,
             }
         } else {
-            PartySignup1 {
+            PartySignup {
                 number: 1,
                 uuid: Uuid::new_v4().to_string(),
+                is_owner: 0,
             }
         }
     };
@@ -161,16 +163,17 @@ async fn main() {
     let uuid_sign = Uuid::new_v4().to_string();
 
     let party1 = 0;
-    let is_client1 = 0;
+    let is_owner1 = 0;
     let sum_partyid = "0".to_string();
     let party_signup_keygen = PartySignup {
         number: party1,
         uuid: uuid_keygen,
-        is_client: is_client1,
+        is_owner: is_owner1,
     };
-    let party_signup_sign = PartySignup1 {
+    let party_signup_sign = PartySignup {
         number: party1,
         uuid: uuid_sign,
+        is_owner: 0,
     };
     {
         let mut hm = db_mtx.write().unwrap();
