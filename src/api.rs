@@ -14,7 +14,7 @@ use crate::curv::{
     },
     elliptic::curves::secp256_k1::{Secp256k1Point as Point, Secp256k1Scalar as Scalar},
 };
-use crate::errors::{Result, TssError};
+use crate::errors::Result;
 use crate::gg_2018::mta::*;
 use crate::gg_2018::party_i::*;
 use crate::log;
@@ -66,7 +66,7 @@ pub async fn gg18_keygen_client_new_context(
     addr: String,
     t: usize,
     n: usize,
-    delay: u32,
+    _delay: u32,
 ) -> Result<String> {
     let client = new_client_with_headers()?;
     let params = Parameters {
@@ -449,7 +449,7 @@ pub struct GG18SignClientContext {
 pub async fn gg18_sign_client_new_context(
     addr: String,
     t: usize,
-    n: usize,
+    _n: usize,
     key_store: String,
     message_str: String,
 ) -> Result<String> {

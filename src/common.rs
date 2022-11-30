@@ -100,7 +100,7 @@ pub async fn sleep(ms: u32) {
             .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms as i32)
             .unwrap();
     });
-    wasm_bindgen_futures::JsFuture::from(promise).await;
+    wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
 }
 
 #[cfg(not(target_arch = "wasm32"))]

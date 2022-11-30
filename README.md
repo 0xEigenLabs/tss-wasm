@@ -10,9 +10,9 @@ A portable lightweight client application for threshold ECDSA (based on [GG18](h
 
 ## Latest release
 
-web: @ieigen/tss-wasm@0.0.6
+web: @ieigen/tss-wasm@0.0.8
 
-nodejs: @ieigen/tss-wasm-node@0.0.6, node 18.0+ is required
+nodejs: @ieigen/tss-wasm-node@0.0.7, node 18.0+ is required
 
 # Test
 
@@ -22,7 +22,7 @@ yarn build
 yarn test
 ```
 
-## Functional Test via NodeJS
+## Function Test via NodeJS
 ```
 cargo build --examples --release
 ./target/release/examples/gg18_sm_manager
@@ -32,7 +32,7 @@ yarn build_node
 node scripts/run_keygen_sign_node.js
 ```
 
-## Functional Test via Web
+## Function Test via Web
 
 ```
 cargo build --examples --release

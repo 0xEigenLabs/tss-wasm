@@ -1,6 +1,6 @@
 {
   "name": "@ieigen/tss-wasm",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "TSS Wasm on GG18",
   "keywords": [
     "tss",
@@ -11,7 +11,7 @@
     "blockchain"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web --release",
+    "build": "wasm-pack build --target web --release && ./node_modules/webpack/bin/webpack.js",
     "build_node": "wasm-pack build --target nodejs --release",
     "test": "wasm-pack test --node"
   },
