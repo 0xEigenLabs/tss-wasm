@@ -7,6 +7,8 @@ use rocket::{post, routes, State};
 // #[cfg(not(target_arch = "wasm32"))]
 // use rocket::{Request, Response};
 #[cfg(not(target_arch = "wasm32"))]
+use rand::Rng;
+#[cfg(not(target_arch = "wasm32"))]
 use rocket_cors::{AllowedOrigins, CorsOptions};
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashMap;
@@ -57,20 +59,51 @@ fn signup_keygen(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Pa
     let parties = params.parties.parse::<u16>().unwrap();
 
     let key = "signup-keygen".to_string();
+    let key_partyid = "sum-partyid".to_string();
 
     let mut hm = db_mtx.write().unwrap();
-    let party_signup = {
+    let party_signup: PartySignup = {
         let value = hm.get(&key).unwrap();
+        let value_partyid = hm.get(&key_partyid).unwrap();
+        let vector_partyid: Vec<u32> = value_partyid
+            .chars()
+            .flat_map(|ch| ch.to_digit(10))
+            .collect();
+        let tmp: u32 = vector_partyid.iter().sum();
+        let sum_partyid = tmp as u16;
         let client_signup: PartySignup = serde_json::from_str(value).unwrap();
-        if client_signup.number < parties {
+        let sum_parties = (0..parties + 1).fold(0, |a, b| a + b);
+        if value_partyid.parse::<u16>().unwrap() == 0 {
+            let num = rand::thread_rng().gen_range(0, parties);
+            hm.insert(key_partyid, num.to_string());
             PartySignup {
-                number: client_signup.number + 1,
+                number: num,
                 uuid: client_signup.uuid,
+                is_owner: 1,
+            }
+        } else if sum_partyid < sum_parties {
+            let mut vector_parties: Vec<u32> = vec![];
+            for i in 1..sum_parties {
+                vector_parties.push(i.into());
+            }
+            let difference: Vec<u32> = vector_parties
+                .into_iter()
+                .filter(|item| !vector_partyid.contains(item))
+                .collect();
+            let tmp1 = format!("{}{}", value_partyid, difference[0].to_string());
+            hm.insert(key_partyid, tmp1);
+            PartySignup {
+                number: difference[0] as u16,
+                uuid: client_signup.uuid,
+                is_owner: 0,
             }
         } else {
+            let num = rand::thread_rng().gen_range(1, parties);
+            hm.insert(key_partyid, num.to_string());
             PartySignup {
-                number: 1,
+                number: num,
                 uuid: Uuid::new_v4().to_string(),
+                is_owner: 1,
             }
         }
     };
@@ -97,11 +130,13 @@ fn signup_sign(db_mtx: &State<RwLock<HashMap<Key, String>>>) -> Json<Result<Part
             PartySignup {
                 number: client_signup.number + 1,
                 uuid: client_signup.uuid,
+                is_owner: 0,
             }
         } else {
             PartySignup {
                 number: 1,
                 uuid: Uuid::new_v4().to_string(),
+                is_owner: 0,
             }
         }
     };
@@ -122,21 +157,27 @@ async fn main() {
 
     let keygen_key = "signup-keygen".to_string();
     let sign_key = "signup-sign".to_string();
+    let party_id = "sum-partyid".to_string();
 
     let uuid_keygen = Uuid::new_v4().to_string();
     let uuid_sign = Uuid::new_v4().to_string();
 
     let party1 = 0;
+    let is_owner1 = 0;
+    let sum_partyid = "0".to_string();
     let party_signup_keygen = PartySignup {
         number: party1,
         uuid: uuid_keygen,
+        is_owner: is_owner1,
     };
     let party_signup_sign = PartySignup {
         number: party1,
         uuid: uuid_sign,
+        is_owner: 0,
     };
     {
         let mut hm = db_mtx.write().unwrap();
+        hm.insert(party_id, sum_partyid);
         hm.insert(
             keygen_key,
             serde_json::to_string(&party_signup_keygen).unwrap(),

@@ -30,6 +30,7 @@ pub struct GG18KeygenClientContext {
     params: Parameters,
     party_num_int: u16,
     uuid: String,
+    is_owner: u16,
     bc1_vec: Option<Vec<KeyGenBroadcastMessage1>>,
     decom_i: Option<KeyGenDecommitMessage1>,
     party_keys: Option<Keys>,
@@ -74,8 +75,12 @@ pub async fn gg18_keygen_client_new_context(
         share_count: n,
     };
 
-    let (party_num_int, uuid) = match signup_keygen(&client, &addr).await? {
-        PartySignup { number, uuid } => (number, uuid),
+    let (party_num_int, uuid, is_owner) = match signup_keygen(&client, &addr).await? {
+        PartySignup {
+            number,
+            uuid,
+            is_owner,
+        } => (number, uuid, is_owner),
     };
 
     Ok(serde_json::to_string(&GG18KeygenClientContext {
@@ -83,6 +88,7 @@ pub async fn gg18_keygen_client_new_context(
         params,
         party_num_int,
         uuid,
+        is_owner,
         bc1_vec: None,
         decom_i: None,
         party_keys: None,
@@ -380,6 +386,7 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         context.party_keys.as_ref().unwrap(),
         context.shared_keys.as_ref().unwrap(),
         context.party_num_int,
+        context.is_owner,
         context.vss_scheme_vec.as_ref().unwrap(),
         paillier_key_vec,
         context.y_sum.as_ref().unwrap(),
@@ -409,6 +416,7 @@ pub struct GG18SignClientContext {
     party_keys: Keys,
     shared_keys: SharedKeys,
     party_id: u16,
+    is_owner: u16,
     vss_scheme_vec: Vec<VerifiableSS>,
     paillier_key_vector: Vec<EncryptionKey>,
     y_sum: Point,
@@ -460,9 +468,10 @@ pub async fn gg18_sign_client_new_context(
     // let message = &message[..];
     let client = new_client_with_headers()?;
 
-    let (party_keys, shared_keys, party_id, vss_scheme_vec, paillier_key_vector, y_sum): (
+    let (party_keys, shared_keys, party_id, is_owner, vss_scheme_vec, paillier_key_vector, y_sum): (
         Keys,
         SharedKeys,
+        u16,
         u16,
         Vec<VerifiableSS>,
         Vec<EncryptionKey>,
@@ -470,8 +479,12 @@ pub async fn gg18_sign_client_new_context(
     ) = serde_json::from_str(&key_store)?;
 
     //signup:
-    let (party_num_int, uuid) = match signup_sign(&client, &addr).await? {
-        PartySignup { number, uuid } => (number, uuid),
+    let (party_num_int, uuid, _is_owner) = match signup_sign(&client, &addr).await? {
+        PartySignup {
+            number,
+            uuid,
+            is_owner,
+        } => (number, uuid, is_owner),
     };
 
     Ok(serde_json::to_string(&GG18SignClientContext {
@@ -479,6 +492,7 @@ pub async fn gg18_sign_client_new_context(
         party_keys,
         shared_keys,
         party_id,
+        is_owner,
         vss_scheme_vec,
         paillier_key_vector,
         y_sum,
@@ -1082,59 +1096,66 @@ pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<Stri
     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
     let client = new_client_with_headers()?;
     //////////////////////////////////////////////////////////////////////////////
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round9",
-        serde_json::to_string(&context.s_i.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round9_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round9",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+    if context.is_owner == 1 {
+        let round9_ans_vec = poll_for_broadcasts(
+            &client,
+            &context.addr,
+            context.party_num_int,
+            context.threshould + 1,
+            "round9",
+            context.uuid.clone(),
+            delay,
+        )
+        .await?;
 
-    let mut s_i_vec: Vec<Scalar> = Vec::new();
-    format_vec_from_reads(
-        &round9_ans_vec,
-        context.party_num_int as usize,
-        context.s_i.unwrap(),
-        &mut s_i_vec,
-    )?;
+        let mut s_i_vec: Vec<Scalar> = Vec::new();
+        format_vec_from_reads(
+            &round9_ans_vec,
+            context.party_num_int as usize,
+            context.s_i.unwrap(),
+            &mut s_i_vec,
+        )?;
 
-    s_i_vec.remove(usize::from(context.party_num_int - 1));
-    let sig = context
-        .local_sig
-        .clone()
-        .unwrap()
-        .output_signature(&s_i_vec)?;
+        s_i_vec.remove(usize::from(context.party_num_int - 1));
+        let sig = context
+            .local_sig
+            .clone()
+            .unwrap()
+            .output_signature(&s_i_vec)?;
 
-    let sign_json = serde_json::to_string(&vec![
-        //"r",
-        sig.r.to_big_int().to_hex(),
-        //"s",
-        sig.s.to_big_int().to_hex(),
-        //"v"
-        sig.recid.to_string(),
-    ])?;
-    crate::console_log!("sign_json: {:?}", sign_json);
+        let sign_json = serde_json::to_string(&vec![
+            //"r",
+            sig.r.to_big_int().to_hex(),
+            //"s",
+            sig.s.to_big_int().to_hex(),
+            //"v"
+            sig.recid.to_string(),
+        ])?;
+        crate::console_log!("sign_json: {:?}", sign_json);
 
-    check_sig(
-        &sig.r,
-        &sig.s,
-        &context.local_sig.clone().unwrap().m,
-        &context.y_sum.clone(),
-    )?;
+        check_sig(
+            &sig.r,
+            &sig.s,
+            &context.local_sig.clone().unwrap().m,
+            &context.y_sum.clone(),
+        )?;
 
-    Ok(sign_json)
+        return Ok(sign_json);
+    } else {
+        broadcast(
+            &client,
+            &context.addr,
+            context.party_num_int,
+            "round9",
+            serde_json::to_string(&context.s_i.as_ref().unwrap())?,
+            context.uuid.clone(),
+        )
+        .await?;
+    }
+
+    Ok(serde_json::to_string(
+        "part of the signed work has been completed",
+    )?)
 }
 
 fn format_vec_from_reads<'a, T: serde::Deserialize<'a> + Clone>(

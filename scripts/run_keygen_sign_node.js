@@ -77,12 +77,12 @@ async function main() {
         console.log('Sign result: ', res)
         // recover the address
         console.log("digest", digest);
-        let address = ethers.utils.recoverAddress(digest, {
-          r: "0x"+res[0],
-          s: "0x"+res[1],
-          v: res[2]
-        })
-        console.log("recover address by etherjs", address)
+        // let address = ethers.utils.recoverAddress(digest, {
+        //   r: "0x"+res[0],
+        //   s: "0x"+res[1],
+        //   v: res[2]
+        // })
+        // console.log("recover address by etherjs", address)
       }
     }),
   )
