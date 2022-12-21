@@ -1,10 +1,12 @@
 const gg18 = require('../pkg')
 const ethers = require('ethers')
 
-var items = [{ idx: 0 }, { idx: 1 }, { idx: 2 }]
+
+
+var items = [{ idx: 0 }, { idx: 1 }]
 
 let t = 1
-let n = 3
+let n = 2
 let addr = 'http://127.0.0.1:8000'
 
 const delay_ms = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -15,15 +17,20 @@ async function keygen(m, delay) {
   console.log('keygen new context: ')
   context = await m.gg18_keygen_client_round1(context, delay)
   console.log('keygen round1:')
-  context = await m.gg18_keygen_client_round2(context, delay)
-  console.log('keygen round2: ')
-  context = await m.gg18_keygen_client_round3(context, delay)
-  console.log('keygen round3: ')
-  context = await m.gg18_keygen_client_round4(context, delay)
-  console.log('keygen round4: ')
-  keygen_json = await m.gg18_keygen_client_round5(context, delay)
-  console.log('keygen json: ', keygen_json)
-  return keygen_json
+  // console.log(context)
+  // context = await m.gg18_keygen_client_round2(context, delay)
+  // console.log('keygen round2: ')
+  // // console.log(context)
+  // context = await m.gg18_keygen_client_round3(context, delay)
+  // console.log('keygen round3: ')
+  // context = await m.gg18_keygen_client_round4(context, delay)
+  // console.log('keygen round4: ')
+  // context = await m.gg18_keygen_client_round5(context, delay)
+  // console.log('keygen round5: ')
+  // keygen_json = await m.gg18_keygen_client_round6(context, delay)
+  // console.log('keygen json: ', keygen_json)
+  // return keygen_json
+  return context;
 }
 
 async function sign(m, key_store, delay) {
@@ -67,25 +74,25 @@ async function main() {
     }),
   )
 
-  console.log('sign items: ', results)
-  await Promise.all(
-    results.map(async (item) => {
-      if (item.idx < t + 1) {
-        let delay = Math.max(Math.random() % 500, 100)
-        //select random signer
-        res = JSON.parse(await sign(gg18, item.res, delay))
-        console.log('Sign result: ', res)
-        // recover the address
-        console.log("digest", digest);
-        // let address = ethers.utils.recoverAddress(digest, {
-        //   r: "0x"+res[0],
-        //   s: "0x"+res[1],
-        //   v: res[2]
-        // })
-        // console.log("recover address by etherjs", address)
-      }
-    }),
-  )
+  // console.log('sign items: ', results)
+  // await Promise.all(
+  //   results.map(async (item) => {
+  //     if (item.idx < t + 1) {
+  //       let delay = Math.max(Math.random() % 500, 100)
+  //       //select random signer
+  //       res = JSON.parse(await sign(gg18, item.res, delay))
+  //       console.log('Sign result: ', res)
+  //       // recover the address
+  //       console.log("digest", digest);
+  //       // let address = ethers.utils.recoverAddress(digest, {
+  //       //   r: "0x"+res[0],
+  //       //   s: "0x"+res[1],
+  //       //   v: res[2]
+  //       // })
+  //       // console.log("recover address by etherjs", address)
+  //     }
+  //   }),
+  // )
 }
 
 main().then(() => {

@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 use crate::common::{
     aes_decrypt, aes_encrypt, broadcast, check_sig, poll_for_broadcasts, poll_for_p2p, postb,
-    public_key_address, sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN,
+    public_key_address, sendp2p, PartySignup, AEAD, AES_KEY_BYTES_LEN, sleep,Entry,
 };
 use crate::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use crate::curv::{
@@ -108,11 +108,11 @@ pub async fn gg18_keygen_client_new_context(
 #[wasm_bindgen]
 pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<String> {
     let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
-    let client = reqwest::Client::new();
+    let client = new_client_with_headers()?;
     let party_keys = Keys::create(context.party_num_int as usize);
     let (bc_i, decom_i) = party_keys.phase1_broadcast_phase3_proof_of_correct_key();
 
-    broadcast(
+    let _test = broadcast(
         &client,
         &context.addr,
         context.party_num_int,
@@ -121,6 +121,20 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
+
+    let mut bc1_vec = Vec::new();
+    bc1_vec.push(bc_i);
+    context.bc1_vec = Some(bc1_vec);
+    context.party_keys = Some(party_keys);
+    context.decom_i = Some(decom_i);
+
+    Ok(serde_json::to_string(&context)?)
+}
+
+#[wasm_bindgen]
+pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<String> {
+    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
+    let client = reqwest::Client::new();
 
     let round1_ans_vec = poll_for_broadcasts(
         &client,
@@ -137,22 +151,13 @@ pub async fn gg18_keygen_client_round1(context: String, delay: u32) -> Result<St
         .into_iter()
         .map(|m| serde_json::from_str::<KeyGenBroadcastMessage1>(&m))
         .collect::<std::result::Result<Vec<KeyGenBroadcastMessage1>, serde_json::Error>>()?;
-
-    bc1_vec.insert(context.party_num_int as usize - 1, bc_i);
-
+    let cc = context.bc1_vec.unwrap();
+    bc1_vec.insert(context.party_num_int as usize - 1, cc[0].clone());
+     
     context.bc1_vec = Some(bc1_vec);
-    context.party_keys = Some(party_keys);
-    context.decom_i = Some(decom_i);
 
-    Ok(serde_json::to_string(&context)?)
-}
-
-#[wasm_bindgen]
-pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
-    let client = reqwest::Client::new();
-    // send ephemeral public keys and check commitments correctness
-    broadcast(
+//  send ephemeral public keys and check commitments correctness
+    let _test =broadcast(
         &client,
         &context.addr,
         context.party_num_int,
@@ -161,6 +166,14 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
+
+    Ok(serde_json::to_string(&context)?)
+}
+
+#[wasm_bindgen]
+pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<String> {
+    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
+    let client = reqwest::Client::new();
 
     let round2_ans_vec = poll_for_broadcasts(
         &client,
@@ -219,13 +232,6 @@ pub async fn gg18_keygen_client_round2(context: String, delay: u32) -> Result<St
     context.enc_keys = Some(enc_keys);
     context.point_vec = Some(point_vec);
 
-    Ok(serde_json::to_string(&context)?)
-}
-
-#[wasm_bindgen]
-pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
-    let client = reqwest::Client::new();
     let mut j = 0;
     for (k, i) in (1..=context.params.share_count as u16).enumerate() {
         if i != context.party_num_int {
@@ -234,7 +240,7 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
             let plaintext =
                 BigInt::to_vec(&context.secret_shares.as_ref().unwrap()[k].to_big_int());
             let aead_pack_i = aes_encrypt(key_i, &plaintext)?;
-            sendp2p(
+            let _test = sendp2p(
                 &client,
                 &context.addr,
                 context.party_num_int,
@@ -248,6 +254,16 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
         }
     }
 
+    Ok(serde_json::to_string(&context)?)
+}
+
+
+
+#[wasm_bindgen]
+pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<String> {
+    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
+    let client = reqwest::Client::new();
+    
     let round3_ans_vec = poll_for_p2p(
         &client,
         &context.addr,
@@ -258,7 +274,7 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
-
+    
     let mut j = 0;
     let mut party_shares: Vec<Scalar> = Vec::new();
     for i in 1..=context.params.share_count as u16 {
@@ -275,17 +291,9 @@ pub async fn gg18_keygen_client_round3(context: String, delay: u32) -> Result<St
             j += 1;
         }
     }
-
     context.party_shares = Some(party_shares);
 
-    Ok(serde_json::to_string(&context)?)
-}
-
-#[wasm_bindgen]
-pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
-    let client = reqwest::Client::new();
-    broadcast(
+    let _test =broadcast(
         &client,
         &context.addr,
         context.party_num_int,
@@ -294,6 +302,15 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
+
+    Ok(serde_json::to_string(&context)?)
+}
+
+#[wasm_bindgen]
+pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<String> {
+    let mut context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
+    let client = reqwest::Client::new();
+
     let round4_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -333,14 +350,7 @@ pub async fn gg18_keygen_client_round4(context: String, delay: u32) -> Result<St
     context.dlog_proof = Some(dlog_proof);
     context.vss_scheme_vec = Some(vss_scheme_vec);
 
-    Ok(serde_json::to_string(&context)?)
-}
-
-#[wasm_bindgen]
-pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<String> {
-    let context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
-    let client = reqwest::Client::new();
-    broadcast(
+    let _test =broadcast(
         &client,
         &context.addr,
         context.party_num_int,
@@ -349,6 +359,15 @@ pub async fn gg18_keygen_client_round5(context: String, delay: u32) -> Result<St
         context.uuid.clone(),
     )
     .await?;
+
+    Ok(serde_json::to_string(&context)?)
+}
+
+#[wasm_bindgen]
+pub async fn gg18_keygen_client_round6(context: String, delay: u32) -> Result<String> {
+    let context = serde_json::from_str::<GG18KeygenClientContext>(&context)?;
+    let client = reqwest::Client::new();
+   
     let round5_ans_vec = poll_for_broadcasts(
         &client,
         &context.addr,
@@ -529,650 +548,651 @@ pub async fn gg18_sign_client_new_context(
     })?)
 }
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    // round 0: collect signers IDs
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round0",
-        serde_json::to_string(&context.party_id)?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round0_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round0",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round0(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     // round 0: collect signers IDs
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round0",
+//         serde_json::to_string(&context.party_id)?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round0_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round0",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-    let mut j = 0;
-    let mut signers_vec: Vec<usize> = Vec::new();
-    for i in 1..=context.threshould + 1 {
-        if i == context.party_num_int {
-            signers_vec.push((context.party_id - 1).into());
-        } else {
-            let signer_j: u16 = serde_json::from_str(&round0_ans_vec[j])?;
-            signers_vec.push((signer_j - 1).into());
-            j += 1;
-        }
-    }
+//     let mut j = 0;
+//     let mut signers_vec: Vec<usize> = Vec::new();
+//     for i in 1..=context.threshould + 1 {
+//         if i == context.party_num_int {
+//             signers_vec.push((context.party_id - 1).into());
+//         } else {
+//             let signer_j: u16 = serde_json::from_str(&round0_ans_vec[j])?;
+//             signers_vec.push((signer_j - 1).into());
+//             j += 1;
+//         }
+//     }
 
-    let private =
-        PartyPrivate::set_private(context.party_keys.clone(), context.shared_keys.clone());
+//     let private =
+//         PartyPrivate::set_private(context.party_keys.clone(), context.shared_keys.clone());
+     
+//     let sign_keys = SignKeys::create(
+//         &private,
+//         &context.vss_scheme_vec[usize::from(signers_vec[usize::from(context.party_num_int - 1)])],
+//         signers_vec[usize::from(context.party_num_int - 1)].into(),
+//         &signers_vec,
+//     );
 
-    let sign_keys = SignKeys::create(
-        &private,
-        &context.vss_scheme_vec[usize::from(signers_vec[usize::from(context.party_num_int - 1)])],
-        signers_vec[usize::from(context.party_num_int - 1)].into(),
-        &signers_vec,
-    );
+//     let xi_com_vec = Keys::get_commitments_to_xi(&context.vss_scheme_vec);
 
-    let xi_com_vec = Keys::get_commitments_to_xi(&context.vss_scheme_vec);
+//     context.sign_keys = Some(sign_keys);
+//     context.signers_vec = Some(signers_vec);
+//     context.xi_com_vec = Some(xi_com_vec);
 
-    context.sign_keys = Some(sign_keys);
-    context.signers_vec = Some(signers_vec);
-    context.xi_com_vec = Some(xi_com_vec);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     let (com, decommit) = context.sign_keys.as_ref().unwrap().phase1_broadcast();
+//     let (m_a_k, _) = MessageA::a(
+//         &context.sign_keys.as_ref().unwrap().k_i,
+//         &context.party_keys.ek,
+//         &[],
+//     );
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round1",
+//         serde_json::to_string(&(com.clone(), m_a_k))?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round1_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round1",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round1(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    let (com, decommit) = context.sign_keys.as_ref().unwrap().phase1_broadcast();
-    let (m_a_k, _) = MessageA::a(
-        &context.sign_keys.as_ref().unwrap().k_i,
-        &context.party_keys.ek,
-        &[],
-    );
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round1",
-        serde_json::to_string(&(com.clone(), m_a_k))?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round1_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round1",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     context.com = Some(com);
+//     context.decommit = Some(decommit);
+//     context.round1_ans_vec = Some(round1_ans_vec);
 
-    context.com = Some(com);
-    context.decommit = Some(decommit);
-    context.round1_ans_vec = Some(round1_ans_vec);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     let mut j = 0;
+//     let mut bc1_vec: Vec<SignBroadcastPhase1> = Vec::new();
+//     let mut m_a_vec: Vec<MessageA> = Vec::new();
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round2(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    let mut j = 0;
-    let mut bc1_vec: Vec<SignBroadcastPhase1> = Vec::new();
-    let mut m_a_vec: Vec<MessageA> = Vec::new();
+//     for i in 1..context.threshould + 2 {
+//         if i == context.party_num_int {
+//             bc1_vec.push(context.com.as_ref().unwrap().clone());
+//         //   m_a_vec.push(m_a_k.clone());
+//         } else {
+//             //     if signers_vec.contains(&(i as usize)) {
+//             let (bc1_j, m_a_party_j): (SignBroadcastPhase1, MessageA) =
+//                 serde_json::from_str(&context.round1_ans_vec.as_ref().unwrap()[j])?;
+//             bc1_vec.push(bc1_j);
+//             m_a_vec.push(m_a_party_j);
 
-    for i in 1..context.threshould + 2 {
-        if i == context.party_num_int {
-            bc1_vec.push(context.com.as_ref().unwrap().clone());
-        //   m_a_vec.push(m_a_k.clone());
-        } else {
-            //     if signers_vec.contains(&(i as usize)) {
-            let (bc1_j, m_a_party_j): (SignBroadcastPhase1, MessageA) =
-                serde_json::from_str(&context.round1_ans_vec.as_ref().unwrap()[j])?;
-            bc1_vec.push(bc1_j);
-            m_a_vec.push(m_a_party_j);
+//             j += 1;
+//             //       }
+//         }
+//     }
+//     assert_eq!(context.signers_vec.as_ref().unwrap().len(), bc1_vec.len());
 
-            j += 1;
-            //       }
-        }
-    }
-    assert_eq!(context.signers_vec.as_ref().unwrap().len(), bc1_vec.len());
+//     //////////////////////////////////////////////////////////////////////////////
+//     let mut m_b_gamma_send_vec: Vec<MessageB> = Vec::new();
+//     let mut beta_vec: Vec<Scalar> = Vec::new();
+//     let mut m_b_w_send_vec: Vec<MessageB> = Vec::new();
+//     let mut ni_vec: Vec<Scalar> = Vec::new();
+//     let mut j = 0;
+//     for i in 1..context.threshould + 2 {
+//         if i != context.party_num_int {
+//             let (m_b_gamma, beta_gamma, _, _) = MessageB::b(
+//                 &context.sign_keys.as_ref().unwrap().gamma_i,
+//                 &context.paillier_key_vector
+//                     [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+//                 m_a_vec[j].clone(),
+//                 &[],
+//             )
+//             .unwrap();
+//             let (m_b_w, beta_wi, _, _) = MessageB::b(
+//                 &context.sign_keys.as_ref().unwrap().w_i,
+//                 &context.paillier_key_vector
+//                     [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+//                 m_a_vec[j].clone(),
+//                 &[],
+//             )
+//             .unwrap();
+//             m_b_gamma_send_vec.push(m_b_gamma);
+//             m_b_w_send_vec.push(m_b_w);
+//             beta_vec.push(beta_gamma);
+//             ni_vec.push(beta_wi);
+//             j += 1;
+//         }
+//     }
 
-    //////////////////////////////////////////////////////////////////////////////
-    let mut m_b_gamma_send_vec: Vec<MessageB> = Vec::new();
-    let mut beta_vec: Vec<Scalar> = Vec::new();
-    let mut m_b_w_send_vec: Vec<MessageB> = Vec::new();
-    let mut ni_vec: Vec<Scalar> = Vec::new();
-    let mut j = 0;
-    for i in 1..context.threshould + 2 {
-        if i != context.party_num_int {
-            let (m_b_gamma, beta_gamma, _, _) = MessageB::b(
-                &context.sign_keys.as_ref().unwrap().gamma_i,
-                &context.paillier_key_vector
-                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
-                m_a_vec[j].clone(),
-                &[],
-            )
-            .unwrap();
-            let (m_b_w, beta_wi, _, _) = MessageB::b(
-                &context.sign_keys.as_ref().unwrap().w_i,
-                &context.paillier_key_vector
-                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
-                m_a_vec[j].clone(),
-                &[],
-            )
-            .unwrap();
-            m_b_gamma_send_vec.push(m_b_gamma);
-            m_b_w_send_vec.push(m_b_w);
-            beta_vec.push(beta_gamma);
-            ni_vec.push(beta_wi);
-            j += 1;
-        }
-    }
+//     let mut j = 0;
+//     for i in 1..context.threshould + 2 {
+//         if i != context.party_num_int {
+//             sendp2p(
+//                 &client,
+//                 &context.addr,
+//                 context.party_num_int,
+//                 i,
+//                 "round2",
+//                 serde_json::to_string(&(m_b_gamma_send_vec[j].clone(), m_b_w_send_vec[j].clone()))?,
+//                 context.uuid.clone(),
+//             )
+//             .await?;
+//             j += 1;
+//         }
+//     }
 
-    let mut j = 0;
-    for i in 1..context.threshould + 2 {
-        if i != context.party_num_int {
-            sendp2p(
-                &client,
-                &context.addr,
-                context.party_num_int,
-                i,
-                "round2",
-                serde_json::to_string(&(m_b_gamma_send_vec[j].clone(), m_b_w_send_vec[j].clone()))?,
-                context.uuid.clone(),
-            )
-            .await?;
-            j += 1;
-        }
-    }
+//     let round2_ans_vec = poll_for_p2p(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         delay,
+//         "round2",
+//         context.uuid.clone(),
+//     )
+//     .await?;
 
-    let round2_ans_vec = poll_for_p2p(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        delay,
-        "round2",
-        context.uuid.clone(),
-    )
-    .await?;
+//     context.round2_ans_vec = Some(round2_ans_vec);
+//     context.beta_vec = Some(beta_vec);
+//     context.ni_vec = Some(ni_vec);
+//     context.bc1_vec = Some(bc1_vec);
 
-    context.round2_ans_vec = Some(round2_ans_vec);
-    context.beta_vec = Some(beta_vec);
-    context.ni_vec = Some(ni_vec);
-    context.bc1_vec = Some(bc1_vec);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     let mut m_b_gamma_rec_vec: Vec<MessageB> = Vec::new();
+//     let mut m_b_w_rec_vec: Vec<MessageB> = Vec::new();
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round3(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    let mut m_b_gamma_rec_vec: Vec<MessageB> = Vec::new();
-    let mut m_b_w_rec_vec: Vec<MessageB> = Vec::new();
+//     for i in 0..context.threshould {
+//         //  if signers_vec.contains(&(i as usize)) {
+//         let (m_b_gamma_i, m_b_w_i): (MessageB, MessageB) =
+//             serde_json::from_str(&context.round2_ans_vec.as_ref().unwrap()[i as usize])?;
+//         m_b_gamma_rec_vec.push(m_b_gamma_i);
+//         m_b_w_rec_vec.push(m_b_w_i);
+//         //     }
+//     }
 
-    for i in 0..context.threshould {
-        //  if signers_vec.contains(&(i as usize)) {
-        let (m_b_gamma_i, m_b_w_i): (MessageB, MessageB) =
-            serde_json::from_str(&context.round2_ans_vec.as_ref().unwrap()[i as usize])?;
-        m_b_gamma_rec_vec.push(m_b_gamma_i);
-        m_b_w_rec_vec.push(m_b_w_i);
-        //     }
-    }
+//     let mut alpha_vec: Vec<Scalar> = Vec::new();
+//     let mut miu_vec: Vec<Scalar> = Vec::new();
 
-    let mut alpha_vec: Vec<Scalar> = Vec::new();
-    let mut miu_vec: Vec<Scalar> = Vec::new();
+//     let mut j = 0;
+//     for i in 1..context.threshould + 2 {
+//         if i != context.party_num_int {
+//             let m_b = m_b_gamma_rec_vec[j].clone();
 
-    let mut j = 0;
-    for i in 1..context.threshould + 2 {
-        if i != context.party_num_int {
-            let m_b = m_b_gamma_rec_vec[j].clone();
+//             let alpha_ij_gamma = m_b.verify_proofs_get_alpha(
+//                 &context.party_keys.dk,
+//                 &context.sign_keys.as_ref().unwrap().k_i,
+//             )?;
+//             let m_b = m_b_w_rec_vec[j].clone();
+//             let alpha_ij_wi = m_b.verify_proofs_get_alpha(
+//                 &context.party_keys.dk,
+//                 &context.sign_keys.as_ref().unwrap().k_i,
+//             )?;
+//             alpha_vec.push(alpha_ij_gamma.0);
+//             miu_vec.push(alpha_ij_wi.0);
+//             let g_w_i = Keys::update_commitments_to_xi(
+//                 &context.xi_com_vec.as_ref().unwrap()
+//                     [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+//                 &context.vss_scheme_vec
+//                     [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
+//                 context.signers_vec.as_ref().unwrap()[usize::from(i - 1)],
+//                 &context.signers_vec.as_ref().unwrap(),
+//             );
+//             assert_eq!(m_b.b_proof.pk, g_w_i);
+//             j += 1;
+//         }
+//     }
+//     //////////////////////////////////////////////////////////////////////////////
+//     let delta_i = context
+//         .sign_keys
+//         .as_ref()
+//         .unwrap()
+//         .phase2_delta_i(&alpha_vec, &context.beta_vec.as_ref().unwrap());
+//     let sigma = context
+//         .sign_keys
+//         .as_ref()
+//         .unwrap()
+//         .phase2_sigma_i(&miu_vec, &context.ni_vec.as_ref().unwrap());
 
-            let alpha_ij_gamma = m_b.verify_proofs_get_alpha(
-                &context.party_keys.dk,
-                &context.sign_keys.as_ref().unwrap().k_i,
-            )?;
-            let m_b = m_b_w_rec_vec[j].clone();
-            let alpha_ij_wi = m_b.verify_proofs_get_alpha(
-                &context.party_keys.dk,
-                &context.sign_keys.as_ref().unwrap().k_i,
-            )?;
-            alpha_vec.push(alpha_ij_gamma.0);
-            miu_vec.push(alpha_ij_wi.0);
-            let g_w_i = Keys::update_commitments_to_xi(
-                &context.xi_com_vec.as_ref().unwrap()
-                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
-                &context.vss_scheme_vec
-                    [usize::from(context.signers_vec.as_ref().unwrap()[usize::from(i - 1)])],
-                context.signers_vec.as_ref().unwrap()[usize::from(i - 1)],
-                &context.signers_vec.as_ref().unwrap(),
-            );
-            assert_eq!(m_b.b_proof.pk, g_w_i);
-            j += 1;
-        }
-    }
-    //////////////////////////////////////////////////////////////////////////////
-    let delta_i = context
-        .sign_keys
-        .as_ref()
-        .unwrap()
-        .phase2_delta_i(&alpha_vec, &context.beta_vec.as_ref().unwrap());
-    let sigma = context
-        .sign_keys
-        .as_ref()
-        .unwrap()
-        .phase2_sigma_i(&miu_vec, &context.ni_vec.as_ref().unwrap());
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round3",
+//         serde_json::to_string(&delta_i)?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round3_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round3",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
+//     let mut delta_vec: Vec<Scalar> = Vec::new();
+//     format_vec_from_reads(
+//         &round3_ans_vec,
+//         context.party_num_int as usize,
+//         delta_i,
+//         &mut delta_vec,
+//     )?;
+//     let delta_inv = SignKeys::phase3_reconstruct_delta(&delta_vec);
 
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round3",
-        serde_json::to_string(&delta_i)?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round3_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round3",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
-    let mut delta_vec: Vec<Scalar> = Vec::new();
-    format_vec_from_reads(
-        &round3_ans_vec,
-        context.party_num_int as usize,
-        delta_i,
-        &mut delta_vec,
-    )?;
-    let delta_inv = SignKeys::phase3_reconstruct_delta(&delta_vec);
+//     context.m_b_gamma_rec_vec = Some(m_b_gamma_rec_vec);
+//     context.delta_inv = Some(delta_inv);
+//     context.sigma = Some(sigma);
 
-    context.m_b_gamma_rec_vec = Some(m_b_gamma_rec_vec);
-    context.delta_inv = Some(delta_inv);
-    context.sigma = Some(sigma);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     // decommit to gamma_i
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round4",
+//         serde_json::to_string(&context.decommit.as_ref().unwrap())?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round4_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round4",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round4(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    // decommit to gamma_i
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round4",
-        serde_json::to_string(&context.decommit.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round4_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round4",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     let mut decommit_vec: Vec<SignDecommitPhase1> = Vec::new();
+//     format_vec_from_reads(
+//         &round4_ans_vec,
+//         context.party_num_int as usize,
+//         context.decommit.clone().unwrap(),
+//         &mut decommit_vec,
+//     )?;
 
-    let mut decommit_vec: Vec<SignDecommitPhase1> = Vec::new();
-    format_vec_from_reads(
-        &round4_ans_vec,
-        context.party_num_int as usize,
-        context.decommit.clone().unwrap(),
-        &mut decommit_vec,
-    )?;
+//     let decomm_i = decommit_vec.remove(usize::from(context.party_num_int - 1));
+//     let _ = &context
+//         .bc1_vec
+//         .as_mut()
+//         .unwrap()
+//         .remove(usize::from(context.party_num_int - 1));
+//     let b_proof_vec = (0..context.m_b_gamma_rec_vec.as_ref().unwrap().len())
+//         .map(|i| &context.m_b_gamma_rec_vec.as_ref().unwrap()[i].b_proof)
+//         .collect::<Vec<&DLogProof>>();
 
-    let decomm_i = decommit_vec.remove(usize::from(context.party_num_int - 1));
-    let _ = &context
-        .bc1_vec
-        .as_mut()
-        .unwrap()
-        .remove(usize::from(context.party_num_int - 1));
-    let b_proof_vec = (0..context.m_b_gamma_rec_vec.as_ref().unwrap().len())
-        .map(|i| &context.m_b_gamma_rec_vec.as_ref().unwrap()[i].b_proof)
-        .collect::<Vec<&DLogProof>>();
+//     let R = SignKeys::phase4(
+//         &context.delta_inv.as_ref().unwrap(),
+//         &b_proof_vec,
+//         decommit_vec,
+//         &context.bc1_vec.as_ref().unwrap(),
+//     )?;
 
-    let R = SignKeys::phase4(
-        &context.delta_inv.as_ref().unwrap(),
-        &b_proof_vec,
-        decommit_vec,
-        &context.bc1_vec.as_ref().unwrap(),
-    )?;
+//     // adding local g_gamma_i
+//     let R = R + decomm_i.g_gamma_i * context.delta_inv.as_ref().unwrap();
 
-    // adding local g_gamma_i
-    let R = R + decomm_i.g_gamma_i * context.delta_inv.as_ref().unwrap();
+//     // we assume the message is already hashed (by the signer).
+//     let message = &context.message[..];
+//     let message_bn = BigInt::from_bytes_be(message);
+//     let local_sig = LocalSignature::phase5_local_sig(
+//         &context.sign_keys.as_ref().unwrap().k_i,
+//         &message_bn,
+//         &R,
+//         &context.sigma.as_ref().unwrap(),
+//         &context.y_sum,
+//     );
 
-    // we assume the message is already hashed (by the signer).
-    let message = &context.message[..];
-    let message_bn = BigInt::from_bytes_be(message);
-    let local_sig = LocalSignature::phase5_local_sig(
-        &context.sign_keys.as_ref().unwrap().k_i,
-        &message_bn,
-        &R,
-        &context.sigma.as_ref().unwrap(),
-        &context.y_sum,
-    );
+//     let (phase5_com, phase_5a_decom, helgamal_proof, dlog_proof_rho) =
+//         local_sig.phase5a_broadcast_5b_zkproof();
 
-    let (phase5_com, phase_5a_decom, helgamal_proof, dlog_proof_rho) =
-        local_sig.phase5a_broadcast_5b_zkproof();
+//     context.phase5_com = Some(phase5_com);
+//     context.phase_5a_decom = Some(phase_5a_decom);
+//     context.helgamal_proof = Some(helgamal_proof);
+//     context.dlog_proof_rho = Some(dlog_proof_rho);
+//     context.local_sig = Some(local_sig);
+//     context.r = Some(R);
 
-    context.phase5_com = Some(phase5_com);
-    context.phase_5a_decom = Some(phase_5a_decom);
-    context.helgamal_proof = Some(helgamal_proof);
-    context.dlog_proof_rho = Some(dlog_proof_rho);
-    context.local_sig = Some(local_sig);
-    context.r = Some(R);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     //phase (5A)  broadcast commit
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round5",
+//         serde_json::to_string(&context.phase5_com.as_ref().unwrap())?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round5_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round5",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round5(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    //phase (5A)  broadcast commit
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round5",
-        serde_json::to_string(&context.phase5_com.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round5_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round5",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     let mut commit5a_vec: Vec<Phase5Com1> = Vec::new();
+//     format_vec_from_reads(
+//         &round5_ans_vec,
+//         context.party_num_int as usize,
+//         context.phase5_com.clone().unwrap(),
+//         &mut commit5a_vec,
+//     )?;
 
-    let mut commit5a_vec: Vec<Phase5Com1> = Vec::new();
-    format_vec_from_reads(
-        &round5_ans_vec,
-        context.party_num_int as usize,
-        context.phase5_com.clone().unwrap(),
-        &mut commit5a_vec,
-    )?;
+//     context.commit5a_vec = Some(commit5a_vec);
 
-    context.commit5a_vec = Some(commit5a_vec);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     //phase (5B)  broadcast decommit and (5B) ZK proof
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round6",
+//         serde_json::to_string(&(
+//             context.phase_5a_decom.clone().unwrap(),
+//             context.helgamal_proof.clone().unwrap(),
+//             context.dlog_proof_rho.clone().unwrap(),
+//         ))?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round6_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round6",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round6(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    //phase (5B)  broadcast decommit and (5B) ZK proof
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round6",
-        serde_json::to_string(&(
-            context.phase_5a_decom.clone().unwrap(),
-            context.helgamal_proof.clone().unwrap(),
-            context.dlog_proof_rho.clone().unwrap(),
-        ))?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round6_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round6",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     let mut decommit5a_and_elgamal_and_dlog_vec: Vec<(Phase5ADecom1, HomoELGamalProof, DLogProof)> =
+//         Vec::new();
+//     format_vec_from_reads(
+//         &round6_ans_vec,
+//         context.party_num_int as usize,
+//         (
+//             context.phase_5a_decom.clone().unwrap(),
+//             context.helgamal_proof.clone().unwrap(),
+//             context.dlog_proof_rho.clone().unwrap(),
+//         ),
+//         &mut decommit5a_and_elgamal_and_dlog_vec,
+//     )?;
+//     let decommit5a_and_elgamal_and_dlog_vec_includes_i =
+//         decommit5a_and_elgamal_and_dlog_vec.clone();
+//     decommit5a_and_elgamal_and_dlog_vec.remove(usize::from(context.party_num_int - 1));
+//     context
+//         .commit5a_vec
+//         .as_mut()
+//         .unwrap()
+//         .remove(usize::from(context.party_num_int - 1));
+//     let phase_5a_decomm_vec = (0..context.threshould)
+//         .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].0.clone())
+//         .collect::<Vec<Phase5ADecom1>>();
+//     let phase_5a_elgamal_vec = (0..context.threshould)
+//         .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].1.clone())
+//         .collect::<Vec<HomoELGamalProof>>();
+//     let phase_5a_dlog_vec = (0..context.threshould)
+//         .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].2.clone())
+//         .collect::<Vec<DLogProof>>();
+//     let (phase5_com2, phase_5d_decom2) = context.local_sig.clone().unwrap().phase5c(
+//         &phase_5a_decomm_vec,
+//         &context.commit5a_vec.as_ref().unwrap(),
+//         &phase_5a_elgamal_vec,
+//         &phase_5a_dlog_vec,
+//         &context.phase_5a_decom.as_ref().unwrap().V_i,
+//         &context.r.as_ref().unwrap(),
+//     )?;
 
-    let mut decommit5a_and_elgamal_and_dlog_vec: Vec<(Phase5ADecom1, HomoELGamalProof, DLogProof)> =
-        Vec::new();
-    format_vec_from_reads(
-        &round6_ans_vec,
-        context.party_num_int as usize,
-        (
-            context.phase_5a_decom.clone().unwrap(),
-            context.helgamal_proof.clone().unwrap(),
-            context.dlog_proof_rho.clone().unwrap(),
-        ),
-        &mut decommit5a_and_elgamal_and_dlog_vec,
-    )?;
-    let decommit5a_and_elgamal_and_dlog_vec_includes_i =
-        decommit5a_and_elgamal_and_dlog_vec.clone();
-    decommit5a_and_elgamal_and_dlog_vec.remove(usize::from(context.party_num_int - 1));
-    context
-        .commit5a_vec
-        .as_mut()
-        .unwrap()
-        .remove(usize::from(context.party_num_int - 1));
-    let phase_5a_decomm_vec = (0..context.threshould)
-        .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].0.clone())
-        .collect::<Vec<Phase5ADecom1>>();
-    let phase_5a_elgamal_vec = (0..context.threshould)
-        .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].1.clone())
-        .collect::<Vec<HomoELGamalProof>>();
-    let phase_5a_dlog_vec = (0..context.threshould)
-        .map(|i| decommit5a_and_elgamal_and_dlog_vec[i as usize].2.clone())
-        .collect::<Vec<DLogProof>>();
-    let (phase5_com2, phase_5d_decom2) = context.local_sig.clone().unwrap().phase5c(
-        &phase_5a_decomm_vec,
-        &context.commit5a_vec.as_ref().unwrap(),
-        &phase_5a_elgamal_vec,
-        &phase_5a_dlog_vec,
-        &context.phase_5a_decom.as_ref().unwrap().V_i,
-        &context.r.as_ref().unwrap(),
-    )?;
+//     context.phase5_com2 = Some(phase5_com2);
+//     context.phase_5d_decom2 = Some(phase_5d_decom2);
+//     context.decommit5a_and_elgamal_and_dlog_vec_includes_i =
+//         Some(decommit5a_and_elgamal_and_dlog_vec_includes_i);
 
-    context.phase5_com2 = Some(phase5_com2);
-    context.phase_5d_decom2 = Some(phase_5d_decom2);
-    context.decommit5a_and_elgamal_and_dlog_vec_includes_i =
-        Some(decommit5a_and_elgamal_and_dlog_vec_includes_i);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     //////////////////////////////////////////////////////////////////////////////
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round7",
+//         serde_json::to_string(&context.phase5_com2.as_ref().unwrap())?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round7_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round7",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round7(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    //////////////////////////////////////////////////////////////////////////////
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round7",
-        serde_json::to_string(&context.phase5_com2.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round7_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round7",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     let mut commit5c_vec: Vec<Phase5Com2> = Vec::new();
+//     format_vec_from_reads(
+//         &round7_ans_vec,
+//         context.party_num_int as usize,
+//         context.phase5_com2.clone().unwrap(),
+//         &mut commit5c_vec,
+//     )?;
 
-    let mut commit5c_vec: Vec<Phase5Com2> = Vec::new();
-    format_vec_from_reads(
-        &round7_ans_vec,
-        context.party_num_int as usize,
-        context.phase5_com2.clone().unwrap(),
-        &mut commit5c_vec,
-    )?;
+//     context.commit5c_vec = Some(commit5c_vec);
 
-    context.commit5c_vec = Some(commit5c_vec);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<String> {
+//     let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     //phase (5B)  broadcast decommit and (5B) ZK proof
+//     broadcast(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         "round8",
+//         serde_json::to_string(&context.phase_5d_decom2.as_ref().unwrap())?,
+//         context.uuid.clone(),
+//     )
+//     .await?;
+//     let round8_ans_vec = poll_for_broadcasts(
+//         &client,
+//         &context.addr,
+//         context.party_num_int,
+//         context.threshould + 1,
+//         "round8",
+//         context.uuid.clone(),
+//         delay,
+//     )
+//     .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round8(context: String, delay: u32) -> Result<String> {
-    let mut context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    //phase (5B)  broadcast decommit and (5B) ZK proof
-    broadcast(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        "round8",
-        serde_json::to_string(&context.phase_5d_decom2.as_ref().unwrap())?,
-        context.uuid.clone(),
-    )
-    .await?;
-    let round8_ans_vec = poll_for_broadcasts(
-        &client,
-        &context.addr,
-        context.party_num_int,
-        context.threshould + 1,
-        "round8",
-        context.uuid.clone(),
-        delay,
-    )
-    .await?;
+//     let mut decommit5d_vec: Vec<Phase5DDecom2> = Vec::new();
+//     format_vec_from_reads(
+//         &round8_ans_vec,
+//         context.party_num_int as usize,
+//         context.phase_5d_decom2.clone().unwrap(),
+//         &mut decommit5d_vec,
+//     )?;
 
-    let mut decommit5d_vec: Vec<Phase5DDecom2> = Vec::new();
-    format_vec_from_reads(
-        &round8_ans_vec,
-        context.party_num_int as usize,
-        context.phase_5d_decom2.clone().unwrap(),
-        &mut decommit5d_vec,
-    )?;
+//     let phase_5a_decomm_vec_includes_i = (0..=context.threshould)
+//         .map(|i| {
+//             context
+//                 .decommit5a_and_elgamal_and_dlog_vec_includes_i
+//                 .clone()
+//                 .unwrap()[i as usize]
+//                 .0
+//                 .clone()
+//         })
+//         .collect::<Vec<Phase5ADecom1>>();
+//     let s_i = context.local_sig.clone().unwrap().phase5d(
+//         &decommit5d_vec,
+//         &context.commit5c_vec.as_ref().unwrap(),
+//         &phase_5a_decomm_vec_includes_i,
+//     )?;
 
-    let phase_5a_decomm_vec_includes_i = (0..=context.threshould)
-        .map(|i| {
-            context
-                .decommit5a_and_elgamal_and_dlog_vec_includes_i
-                .clone()
-                .unwrap()[i as usize]
-                .0
-                .clone()
-        })
-        .collect::<Vec<Phase5ADecom1>>();
-    let s_i = context.local_sig.clone().unwrap().phase5d(
-        &decommit5d_vec,
-        &context.commit5c_vec.as_ref().unwrap(),
-        &phase_5a_decomm_vec_includes_i,
-    )?;
+//     context.s_i = Some(s_i);
 
-    context.s_i = Some(s_i);
+//     Ok(serde_json::to_string(&context)?)
+// }
 
-    Ok(serde_json::to_string(&context)?)
-}
+// #[wasm_bindgen]
+// pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<String> {
+//     let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
+//     let client = new_client_with_headers()?;
+//     //////////////////////////////////////////////////////////////////////////////
+//     if context.is_owner == 1 {
+//         let round9_ans_vec = poll_for_broadcasts(
+//             &client,
+//             &context.addr,
+//             context.party_num_int,
+//             context.threshould + 1,
+//             "round9",
+//             context.uuid.clone(),
+//             delay,
+//         )
+//         .await?;
 
-#[wasm_bindgen]
-pub async fn gg18_sign_client_round9(context: String, delay: u32) -> Result<String> {
-    let context = serde_json::from_str::<GG18SignClientContext>(&context)?;
-    let client = new_client_with_headers()?;
-    //////////////////////////////////////////////////////////////////////////////
-    if context.is_owner == 1 {
-        let round9_ans_vec = poll_for_broadcasts(
-            &client,
-            &context.addr,
-            context.party_num_int,
-            context.threshould + 1,
-            "round9",
-            context.uuid.clone(),
-            delay,
-        )
-        .await?;
+//         let mut s_i_vec: Vec<Scalar> = Vec::new();
+//         format_vec_from_reads(
+//             &round9_ans_vec,
+//             context.party_num_int as usize,
+//             context.s_i.unwrap(),
+//             &mut s_i_vec,
+//         )?;
 
-        let mut s_i_vec: Vec<Scalar> = Vec::new();
-        format_vec_from_reads(
-            &round9_ans_vec,
-            context.party_num_int as usize,
-            context.s_i.unwrap(),
-            &mut s_i_vec,
-        )?;
+//         s_i_vec.remove(usize::from(context.party_num_int - 1));
+//         let sig = context
+//             .local_sig
+//             .clone()
+//             .unwrap()
+//             .output_signature(&s_i_vec)?;
 
-        s_i_vec.remove(usize::from(context.party_num_int - 1));
-        let sig = context
-            .local_sig
-            .clone()
-            .unwrap()
-            .output_signature(&s_i_vec)?;
+//         let sign_json = serde_json::to_string(&vec![
+//             //"r",
+//             sig.r.to_big_int().to_hex(),
+//             //"s",
+//             sig.s.to_big_int().to_hex(),
+//             //"v"
+//             sig.recid.to_string(),
+//         ])?;
+//         crate::console_log!("sign_json: {:?}", sign_json);
 
-        let sign_json = serde_json::to_string(&vec![
-            //"r",
-            sig.r.to_big_int().to_hex(),
-            //"s",
-            sig.s.to_big_int().to_hex(),
-            //"v"
-            sig.recid.to_string(),
-        ])?;
-        crate::console_log!("sign_json: {:?}", sign_json);
+//         check_sig(
+//             &sig.r,
+//             &sig.s,
+//             &context.local_sig.clone().unwrap().m,
+//             &context.y_sum.clone(),
+//         )?;
 
-        check_sig(
-            &sig.r,
-            &sig.s,
-            &context.local_sig.clone().unwrap().m,
-            &context.y_sum.clone(),
-        )?;
+//         return Ok(sign_json);
+//     } else {
+//         broadcast(
+//             &client,
+//             &context.addr,
+//             context.party_num_int,
+//             "round9",
+//             serde_json::to_string(&context.s_i.as_ref().unwrap())?,
+//             context.uuid.clone(),
+//         )
+//         .await?;
+//     }
 
-        return Ok(sign_json);
-    } else {
-        broadcast(
-            &client,
-            &context.addr,
-            context.party_num_int,
-            "round9",
-            serde_json::to_string(&context.s_i.as_ref().unwrap())?,
-            context.uuid.clone(),
-        )
-        .await?;
-    }
+//     Ok(serde_json::to_string(
+//         "part of the signed work has been completed",
+//     )?)
+// }
 
-    Ok(serde_json::to_string(
-        "part of the signed work has been completed",
-    )?)
-}
+// fn format_vec_from_reads<'a, T: serde::Deserialize<'a> + Clone>(
+//     ans_vec: &'a [String],
+//     party_num: usize,
+//     value_i: T,
+//     new_vec: &'a mut Vec<T>,
+// ) -> Result<()> {
+//     let mut j = 0;
+//     for i in 1..ans_vec.len() + 2 {
+//         if i == party_num {
+//             new_vec.push(value_i.clone());
+//         } else {
+//             let value_j: T = serde_json::from_str(&ans_vec[j])?;
+//             new_vec.push(value_j);
+//             j += 1;
+//         }
+//     }
+//     Ok(())
+// }
 
-fn format_vec_from_reads<'a, T: serde::Deserialize<'a> + Clone>(
-    ans_vec: &'a [String],
-    party_num: usize,
-    value_i: T,
-    new_vec: &'a mut Vec<T>,
-) -> Result<()> {
-    let mut j = 0;
-    for i in 1..ans_vec.len() + 2 {
-        if i == party_num {
-            new_vec.push(value_i.clone());
-        } else {
-            let value_j: T = serde_json::from_str(&ans_vec[j])?;
-            new_vec.push(value_j);
-            j += 1;
-        }
-    }
-    Ok(())
-}
