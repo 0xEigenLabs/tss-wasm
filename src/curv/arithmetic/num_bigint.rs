@@ -73,17 +73,36 @@ impl Modulo for BigUint {
 }
 
 fn egcd(a: &BigUint, b: &BigUint) -> (BN, BN, BN) {
-    if a.mod_floor(b) == BigUint::zero() {
-        return (
-            b.clone().to_bigint().unwrap(),
-            BigUint::zero().to_bigint().unwrap(),
-            BigUint::one().to_bigint().unwrap(),
-        );
-    } else {
-        let (q, r) = a.div_rem(b);
-        let (d, x, y) = egcd(b, &r);
-        return (d, y.clone(), x - y * (q.to_bigint().unwrap()));
+    let mut a = a.clone().to_bigint().unwrap();
+    let mut b = b.clone().to_bigint().unwrap();
+
+    let mut ua = BN::one();
+    let mut va = BN::zero();
+
+    let mut ub = BN::zero();
+    let mut vb = BN::one();
+
+    let mut q;
+    let mut tmp;
+    let mut r;
+
+    while !b.is_zero() {
+        q = &a / &b;
+
+        r = &a % &b;
+
+        a = b;
+        b = r;
+
+        tmp = ua;
+        ua = ub.clone();
+        ub = tmp - &q * &ub;
+
+        tmp = va;
+        va = vb.clone();
+        vb = tmp - &q * &vb;
     }
+    (a, ua, va)
 }
 impl ConvertFrom<BigUint> for usize {
     fn _from(x: &BigUint) -> usize {
