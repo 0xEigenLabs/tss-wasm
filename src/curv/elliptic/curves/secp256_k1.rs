@@ -799,7 +799,7 @@ mod tests {
     fn test_egcd() {
         let a: FE = ECScalar::new_random();
         let a_bn = a.to_big_int();
-        let (gcd, x, y) = BigInt::mod_test(&a_bn, &FE::q());
+        let (gcd, x, y) = BigInt::mod_egcd(&a_bn, &FE::q());
         let value = BigInt::mod_add(&(x * &a_bn), &(y * &FE::q()), &FE::q());
         assert_eq!(gcd, value);
     }
