@@ -71,7 +71,7 @@ impl Modulo for BigUint {
         x_ubn
     }
 
-    fn mod_test(a: &Self, modulus: &Self) -> (Self, Self, Self) {
+    fn mod_egcd(a: &Self, modulus: &Self) -> (Self, Self, Self) {
         let (gcd1, x1, y1) = egcd(a, modulus);
         let gcd = gcd1.to_biguint().unwrap();
         let x = x1
