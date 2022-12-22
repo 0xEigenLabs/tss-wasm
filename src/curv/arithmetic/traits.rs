@@ -32,6 +32,7 @@ pub trait Modulo {
     fn mod_sub(a: &Self, b: &Self, modulus: &Self) -> Self;
     fn mod_add(a: &Self, b: &Self, modulus: &Self) -> Self;
     fn mod_inv(a: &Self, modulus: &Self) -> Self;
+    fn mod_test(a: &Self, modulus: &Self) -> (Self, Self, Self) where Self: Sized;
 }
 
 pub trait Samplable {
