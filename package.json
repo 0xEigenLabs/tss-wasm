@@ -1,7 +1,7 @@
 {
   "name": "@ieigen/tss-wasm",
-  "version": "0.0.8",
-  "description": "TSS Wasm on GG18",
+  "version": "0.0.9",
+  "description": "TSS Wasm for ECDSA",
   "keywords": [
     "tss",
     "wasm",
