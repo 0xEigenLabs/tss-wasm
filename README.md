@@ -5,8 +5,8 @@ A portable lightweight client application for threshold ECDSA (based on [GG18](h
 
 # Npm publish
 
-* node: yarn build_node
-* web: yarn build
+* node: npm run build_node
+* web: npm run build
 
 ## Latest release
 
@@ -18,8 +18,8 @@ nodejs: @ieigen/tss-wasm-node@0.0.7, node 18.0+ is required
 
 ## Unit Test
 ```
-yarn build
-yarn test
+npm run build
+npm run test
 ```
 
 ## Function Test via NodeJS
@@ -28,7 +28,7 @@ cargo build --examples --release
 ./target/release/examples/gg18_sm_manager
 
 # open another console
-yarn build_node
+npm run build_node
 node scripts/run_keygen_sign_node.js
 ```
 
@@ -39,9 +39,9 @@ cargo build --examples --release
 ./target/release/examples/gg18_sm_manager
 
 # open another console
-yarn build
+npm run build
 export NODE_OPTIONS=--openssl-legacy-provider
-yarn webpack && yarn webpack-dev-server
+npm run webpack && npm run webpack-dev-server
 ```
 
 Open `http://localhost:8080/` in browser, check out the output in `console`.
